@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: fortimove_images
+      POSTGRES_USER: fortimove
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fortimove"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (캐시 및 작업 큐)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI 백엔드
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=postgresql://fortimove:${DB_PASSWORD:-changeme}@db:5432/fortimove_images
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - DEBUG=false
+    volumes:
+      - ./backend/app:/app/app
+      - image_storage:/tmp/fortimove-images
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Celery Worker (백그라운드 작업)
+  celery_worker:
+    build: ./backend
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql://fortimove:${DB_PASSWORD:-changeme}@db:5432/fortimove_images
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./backend/app:/app/app
+      - image_storage:/tmp/fortimove-images
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+
+  # React 프론트엔드 (프로덕션 빌드)
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  image_storage:
