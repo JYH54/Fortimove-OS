@@ -1,6 +1,40 @@
 # Fortimove-OS 빠른 시작 가이드
 
-## 1. 환경 설정 (최초 1회)
+## 0. 개발 환경 (Dev Container — 권장)
+
+> VS Code + Docker만 있으면 Python, DB, 크롤러 등 모든 의존성이 자동 설치됩니다.
+
+**사전 요구**: VS Code, Docker Desktop, [Dev Containers 확장](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
+```bash
+# 1) WSL2 터미널에서 프로젝트 클론
+git clone https://github.com/JYH54/Fortimove-OS.git
+cd Fortimove-OS
+
+# 2) VS Code로 열기
+code .
+```
+
+VS Code에서 좌측 하단 `><` 클릭 → **"Reopen in Container"** 선택  
+→ 첫 빌드 시 Python 패키지, Tesseract OCR, Playwright 등 자동 설치 (5~10분)  
+→ 이후 재실행 시 수초 내 시작
+
+**자동으로 설정되는 것:**
+- Python 3.11 + 전체 패키지 (pm-agent, daily-scout, image-localization)
+- PostgreSQL 16 (DB 자동 시작)
+- Tesseract OCR (한국어/중국어)
+- Playwright Chromium (크롤링용)
+- `.env` 파일 자동 생성
+
+```bash
+# 컨테이너 안에서 바로 사용
+nano .env  # ANTHROPIC_API_KEY 입력
+cd pm-agent && python fortimove.py --help
+```
+
+---
+
+## 1. 환경 설정 — 수동 (Dev Container 없이 직접 설치할 경우)
 
 ```bash
 # .env 파일 생성
