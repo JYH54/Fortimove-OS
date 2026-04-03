@@ -1,0 +1,18 @@
+# Fortimove MD Dashboard - Dependencies
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+jinja2==3.1.3
+
+# Database
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# Utilities
+python-dateutil==2.8.2
+pandas==2.2.0
+openpyxl==3.1.2
+anthropic==0.30.0
+aiohttp==3.11.13
+python-multipart==0.0.6

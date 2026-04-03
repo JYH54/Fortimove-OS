@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortimove 이미지 현지화 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            margin-bottom: 40px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #666;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .preview-section {
+            margin-bottom: 40px;
+            display: none;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .preview-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .preview-item .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,0,0,0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-section {
+            background: #f8f9ff;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .setting-group {
+            margin-bottom: 25px;
+        }
+
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .moodtone-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .moodtone-option {
+            position: relative;
+        }
+
+        .moodtone-option input[type="radio"] {
+            display: none;
+        }
+
+        .moodtone-label {
+            display: block;
+            padding: 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .moodtone-option input[type="radio"]:checked + .moodtone-label {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .moodtone-label:hover {
+            border-color: #667eea;
+        }
+
+        select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .process-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .process-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 40px;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .result-item {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .result-item h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .result-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .result-image {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .result-image img {
+            width: 100%;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .seo-data {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .seo-item {
+            margin-bottom: 15px;
+        }
+
+        .seo-item strong {
+            display: block;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin: 3px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Fortimove 이미지 현지화 시스템</h1>
+            <p>타오바오/티몰 상품 이미지를 한국 이커머스용으로 자동 변환</p>
+        </div>
+
+        <div class="content">
+            <!-- 파일 업로드 영역 -->
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">여기에 이미지를 드래그하거나 클릭하여 선택</div>
+                    <div class="upload-hint">JPG, PNG, WEBP 파일 지원 (최대 20개)</div>
+                </div>
+                <input type="file" id="fileInput" multiple accept="image/*">
+            </div>
+
+            <!-- 미리보기 영역 -->
+            <div class="preview-section" id="previewSection">
+                <h2 style="margin-bottom: 20px;">선택된 이미지 (<span id="imageCount">0</span>개)</h2>
+                <div class="preview-grid" id="previewGrid"></div>
+            </div>
+
+            <!-- 설정 영역 -->
+            <div class="settings-section" id="settingsSection" style="display: none;">
+                <h2 style="margin-bottom: 25px;">처리 옵션 설정</h2>
+
+                <!-- 무드톤 선택 -->
+                <div class="setting-group">
+                    <label class="setting-label">📐 무드톤 선택</label>
+                    <div class="moodtone-options">
+                        <div class="moodtone-option">
+                            <input type="radio" name="moodtone" value="premium" id="premium" checked>
+                            <label for="premium" class="moodtone-label">💎 프리미엄</label>
+                        </div>
+                        <div class="moodtone-option">
+                            <input type="radio" name="moodtone" value="value" id="value">
+                            <label for="value" class="moodtone-label">💰 가성비</label>
+                        </div>
+                        <div class="moodtone-option">
+                            <input type="radio" name="moodtone" value="minimal" id="minimal">
+                            <label for="minimal" class="moodtone-label">⚪ 미니멀</label>
+                        </div>
+                        <div class="moodtone-option">
+                            <input type="radio" name="moodtone" value="trendy" id="trendy">
+                            <label for="trendy" class="moodtone-label">✨ 트렌디</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 브랜드 타입 -->
+                <div class="setting-group">
+                    <label class="setting-label" for="brandType">🏷️ 브랜드 타입</label>
+                    <select id="brandType">
+                        <option value="global">Fortimove Global (테스트/단기 상품)</option>
+                        <option value="main">Fortimove (핵심 PB 상품)</option>
+                    </select>
+                </div>
+
+                <!-- 리스크 자동 처리 -->
+                <div class="setting-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="autoReplaceRisks" checked>
+                        <label for="autoReplaceRisks">⚠️ 리스크 요소 자동 제거 (유아 이미지, 얼굴, 브랜드 로고)</label>
+                    </div>
+                </div>
+
+                <!-- 처리 버튼 -->
+                <button class="process-btn" id="processBtn">
+                    🚀 이미지 처리 시작
+                </button>
+            </div>
+
+            <!-- 로딩 -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>이미지를 처리하고 있습니다...</p>
+                <p style="font-size: 14px; color: #666; margin-top: 10px;">OCR, 번역, 리스크 탐지, 이미지 재가공 진행 중</p>
+            </div>
+
+            <!-- 결과 -->
+            <div class="results-section" id="resultsSection">
+                <h2 style="margin-bottom: 20px;">✅ 처리 완료</h2>
+                <div id="resultsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewSection = document.getElementById('previewSection');
+        const previewGrid = document.getElementById('previewGrid');
+        const imageCount = document.getElementById('imageCount');
+        const settingsSection = document.getElementById('settingsSection');
+        const processBtn = document.getElementById('processBtn');
+        const loading = document.getElementById('loading');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsContent = document.getElementById('resultsContent');
+
+        let selectedFiles = [];
+
+        // 클릭으로 파일 선택
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 드래그 앤 드롭
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            handleFiles(files);
+        });
+
+        // 파일 선택
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        function handleFiles(files) {
+            selectedFiles = files.filter(file => file.type.startsWith('image/'));
+            if (selectedFiles.length === 0) {
+                alert('이미지 파일만 업로드 가능합니다.');
+                return;
+            }
+
+            if (selectedFiles.length > 20) {
+                alert('최대 20개 이미지까지 업로드 가능합니다.');
+                selectedFiles = selectedFiles.slice(0, 20);
+            }
+
+            displayPreviews();
+            previewSection.style.display = 'block';
+            settingsSection.style.display = 'block';
+        }
+
+        function displayPreviews() {
+            previewGrid.innerHTML = '';
+            imageCount.textContent = selectedFiles.length;
+
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview ${index + 1}">
+                        <button class="remove-btn" onclick="removeImage(${index})">×</button>
+                    `;
+                    previewGrid.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function removeImage(index) {
+            selectedFiles.splice(index, 1);
+            if (selectedFiles.length === 0) {
+                previewSection.style.display = 'none';
+                settingsSection.style.display = 'none';
+            } else {
+                displayPreviews();
+            }
+        }
+
+        // 이미지 처리
+        processBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) {
+                alert('이미지를 먼저 선택해주세요.');
+                return;
+            }
+
+            const moodtone = document.querySelector('input[name="moodtone"]:checked').value;
+            const brandType = document.getElementById('brandType').value;
+            const autoReplaceRisks = document.getElementById('autoReplaceRisks').checked;
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            formData.append('moodtone', moodtone);
+            formData.append('brand_type', brandType);
+            formData.append('auto_replace_risks', autoReplaceRisks);
+
+            // UI 상태 변경
+            processBtn.disabled = true;
+            loading.classList.add('active');
+            resultsSection.classList.remove('active');
+
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || '처리 중 오류가 발생했습니다.');
+                }
+
+                const result = await response.json();
+                displayResults(result);
+                resultsSection.classList.add('active');
+            } catch (error) {
+                alert(`오류: ${error.message}`);
+                console.error(error);
+            } finally {
+                loading.classList.remove('active');
+                processBtn.disabled = false;
+            }
+        });
+
+        function displayResults(result) {
+            resultsContent.innerHTML = `
+                <div class="result-item">
+                    <h3>📊 처리 결과</h3>
+                    <p><strong>처리된 이미지 수:</strong> ${result.processed_images?.length || 0}개</p>
+                    <p><strong>처리 시간:</strong> ${result.processing_time_seconds?.toFixed(2) || 0}초</p>
+                </div>
+
+                ${result.processed_images && result.processed_images.length > 0 ? `
+                <div class="result-item">
+                    <h3>🖼️ 처리된 이미지</h3>
+                    <div class="result-images">
+                        ${result.processed_images.map(img => `
+                            <div class="result-image">
+                                <img src="${img.download_url}" alt="${img.original_filename}">
+                                <p style="font-size: 12px; color: #666; margin: 5px 0;">
+                                    ${img.original_filename}<br>
+                                    ${img.width} × ${img.height}px | ${(img.file_size_bytes / 1024).toFixed(1)} KB
+                                </p>
+                                <a href="${img.download_url}" download="${img.processed_filename}" class="download-btn">
+                                    ⬇️ 다운로드
+                                </a>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${result.seo_metadata ? `
+                <div class="result-item">
+                    <h3>🔍 SEO 메타데이터</h3>
+                    <div class="seo-data">
+                        <div class="seo-item">
+                            <strong>추천 상품명</strong>
+                            ${result.seo_metadata.product_names?.map((name, i) =>
+                                `<p>${i + 1}. ${name}</p>`
+                            ).join('') || '<p>없음</p>'}
+                        </div>
+                        <div class="seo-item">
+                            <strong>검색 태그</strong>
+                            <div>
+                                ${result.seo_metadata.search_tags?.map(tag =>
+                                    `<span class="tag">${tag}</span>`
+                                ).join('') || '없음'}
+                            </div>
+                        </div>
+                        <div class="seo-item">
+                            <strong>핵심 키워드</strong>
+                            <div>
+                                ${result.seo_metadata.keywords?.map(keyword =>
+                                    `<span class="tag">${keyword}</span>`
+                                ).join('') || '없음'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${result.risk_summary ? `
+                <div class="result-item">
+                    <h3>⚠️ 리스크 탐지 결과</h3>
+                    <p><strong>유아 이미지:</strong> ${result.risk_summary.infant_images || 0}개</p>
+                    <p><strong>얼굴 감지:</strong> ${result.risk_summary.faces_detected || 0}개</p>
+                    <p><strong>브랜드 로고:</strong> ${result.risk_summary.brand_logos || 0}개</p>
+                </div>
+                ` : ''}
+
+                <div class="result-item">
+                    <h3>💡 사용 팁</h3>
+                    <p>• 처리된 이미지는 1200px 너비로 최적화되었습니다.</p>
+                    <p>• 리스크 요소가 감지된 경우 자동으로 제거 또는 블러 처리되었습니다.</p>
+                    <p>• SEO 메타데이터를 네이버 스마트스토어/쿠팡에 활용하세요.</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

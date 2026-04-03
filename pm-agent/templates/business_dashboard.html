@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fortimove</title>
+<link href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root{--bg:#f5f6f8;--white:#fff;--border:#e5e8ec;--text:#1b1d21;--sub:#858b97;--dim:#b0b5bf;
+--primary:#3259e8;--primary-light:#eef1fd;--green:#00a86b;--green-light:#e8f8f0;--orange:#e8850c;--orange-light:#fef4e6;--red:#e03131;--red-light:#fce8e8;--purple:#7c3aed;
+--sidebar-w:220px;--radius:12px;--shadow:0 1px 4px rgba(0,0,0,.05)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard Variable',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* 사이드바 */
+.sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;z-index:40;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar .logo{padding:20px 24px 16px;font-size:18px;font-weight:800;color:var(--primary);letter-spacing:-.5px}
+.sidebar .user{padding:0 24px 20px;border-bottom:1px solid var(--border)}
+.sidebar .user .name{font-size:14px;font-weight:700}.sidebar .user .email{font-size:11px;color:var(--sub)}
+.nav-group{padding:12px 0}
+.nav-group .group-label{padding:4px 24px;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;font-size:13px;color:var(--sub);cursor:pointer;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{background:#f8f9fb;color:var(--text)}
+.nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600;border-left-color:var(--primary)}
+.nav-item .icon{width:18px;text-align:center;font-size:15px}
+.sidebar-footer{margin-top:auto;padding:16px 24px;border-top:1px solid var(--border)}
+.server-status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,168,107,.4)}50%{box-shadow:0 0 0 6px rgba(0,168,107,0)}}
+
+/* 메인 */
+.main{margin-left:var(--sidebar-w);flex:1;min-height:100vh}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30}
+.topbar h2{font-size:16px;font-weight:700}
+.topbar .right{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--sub)}
+.content{padding:24px 32px 80px}
+
+/* KPI 카드 */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+.kpi-card .label{font-size:11px;color:var(--sub);letter-spacing:.3px;margin-bottom:6px}
+.kpi-card .number{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1}
+.kpi-card .detail{font-size:11px;color:var(--dim);margin-top:6px}
+.limit-bar{height:5px;background:var(--border);border-radius:3px;margin-top:8px;overflow:hidden}
+.limit-fill{height:100%;border-radius:3px;background:var(--primary);transition:width .5s}
+
+/* 2열 레이아웃 */
+.two-col{display:grid;grid-template-columns:1fr 360px;gap:20px}
+
+/* 입력 카드 */
+.input-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:20px}
+.input-card .title{font-size:15px;font-weight:700;margin-bottom:4px}
+.input-card .desc{font-size:13px;color:var(--sub);margin-bottom:18px;line-height:1.5}
+.f-row{display:flex;gap:10px;margin-bottom:10px}
+.f{flex:1;position:relative}
+.f input,.f select{width:100%;height:44px;border:1.5px solid var(--border);border-radius:8px;padding:0 14px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg);transition:border .15s}
+.f input:focus,.f select:focus{outline:none;border-color:var(--primary);background:var(--white)}
+.f input::placeholder{color:var(--dim)}
+.f .lbl{position:absolute;top:-7px;left:10px;background:var(--white);padding:0 5px;font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px}
+.more-toggle{font-size:12px;color:var(--primary);cursor:pointer;margin-bottom:10px;display:inline-block;user-select:none}
+.more-fields{max-height:0;overflow:hidden;transition:max-height .25s}
+.more-fields.open{max-height:120px}
+.go-btn{width:100%;height:48px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s}
+.go-btn:hover{background:#2a4cd4;box-shadow:0 4px 14px rgba(50,89,232,.25)}
+.go-btn:disabled{background:#ccd1db;cursor:default;box-shadow:none}
+
+/* 진행 단계 */
+.steps{margin-top:14px;display:none}.steps.on{display:block}
+.stp{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;color:var(--dim);transition:color .2s}
+.stp.run{color:var(--primary);font-weight:600}.stp.ok{color:var(--green)}.stp.err{color:var(--red)}
+.stp b{width:16px;height:16px;border:1.5px solid currentColor;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:400;flex-shrink:0}
+.stp.run b{animation:blink .8s ease infinite}.stp.ok b{background:var(--green);border-color:var(--green);color:#fff}.stp.err b{background:var(--red);border-color:var(--red);color:#fff}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* 결과 */
+.result{display:none;animation:up .35s ease}.result.on{display:block}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.verdict-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:14px;text-align:center}
+.grade-pill{display:inline-block;padding:8px 28px;border-radius:30px;font-size:18px;font-weight:800}
+.gA{background:var(--green-light);color:var(--green)}.gB{background:var(--primary-light);color:var(--primary)}.gC{background:var(--orange-light);color:var(--orange)}.gD{background:var(--red-light);color:var(--red)}
+.metric-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-top:16px}
+.met{background:var(--white);padding:14px 8px;text-align:center}
+.met .v{font-size:20px;font-weight:800;letter-spacing:-.5px}.met .l{font-size:10px;color:var(--sub);margin-top:2px}
+
+.sec{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)}
+.sec-head{padding:12px 18px;font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background .1s}
+.sec-head:hover{background:#fafbfc}
+.sec-body{padding:16px 18px;font-size:13px;line-height:1.7}
+.sec-body.hide{display:none}
+
+.ttl-box{background:var(--bg);border-radius:8px;padding:11px 14px;margin-bottom:6px}.ttl-box .ch{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}.ttl-box .tx{font-size:13px;font-weight:600;line-height:1.5}
+.hook{font-size:14px;font-weight:700;color:var(--purple);padding:5px 0;border-bottom:1px solid #f3f4f6}.hook:last-child{border:none}
+.kwr{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px}.kwr:last-child{border:none}.kwr .c{color:var(--sub)}
+.tg{display:inline-block;background:var(--bg);padding:3px 11px;border-radius:16px;font-size:11px;font-weight:500;margin:2px}
+.cprev{background:var(--bg);border-radius:8px;padding:12px;font-size:12px;line-height:1.8;max-height:150px;overflow-y:auto;white-space:pre-wrap;color:#4b5563}
+.risk{background:var(--red-light);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:14px}
+
+.actions{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:20px 0}
+.act{height:48px;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .12s}
+.act:hover{transform:translateY(-1px)}
+.act-ok{background:var(--green);color:#fff}.act-ok:hover{box-shadow:0 3px 10px rgba(0,168,107,.25)}
+.act-edit{background:var(--orange);color:#fff}
+.act-no{background:var(--bg);color:var(--sub);border:1px solid var(--border)}
+
+/* 사이드 패널 */
+.side-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px}
+.side-card .sc-title{font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.prod-card{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;border-radius:6px}
+.prod-card:last-child{border:none}
+.prod-card:hover{background:#fafbfc}
+.prod-img{width:56px;height:56px;border-radius:8px;background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px}
+.prod-info .pname{font-size:13px;font-weight:600;margin-bottom:2px;line-height:1.3}
+.prod-info .pprice{font-size:12px;color:var(--green);font-weight:700}
+.prod-info .pmeta{font-size:10px;color:var(--dim)}
+.empty-msg{text-align:center;padding:24px;font-size:12px;color:var(--dim)}
+
+/* 큐 리스트 */
+.q-tabs{display:flex;gap:4px;margin-bottom:12px}
+.qt{padding:5px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--white);color:var(--sub);transition:all .12s}
+.qt:hover,.qt.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.qi{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--white);transition:border-color .12s}
+.qi:hover{border-color:var(--primary)}
+.qi .t{font-size:12px;font-weight:600}.qi .d{font-size:10px;color:var(--dim)}
+.qbadge{padding:2px 10px;border-radius:10px;font-size:10px;font-weight:700}
+.qb-pending{background:var(--orange-light);color:var(--orange)}.qb-approved{background:var(--green-light);color:var(--green)}.qb-needs_edit{background:var(--red-light);color:var(--red)}.qb-rejected{background:#f3f4f6;color:var(--sub)}
+
+@media(max-width:960px){.sidebar{display:none}.main{margin-left:0}.two-col{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- 사이드바 -->
+<aside class="sidebar">
+  <div class="logo">Fortimove</div>
+  <div class="user"><div class="name">운영자</div><div class="email">대시보드 v2.0</div></div>
+  <div class="nav-group">
+    <div class="group-label">메인</div>
+    <div class="nav-item active"><span class="icon">📊</span>대시보드</div>
+    <div class="nav-item" onclick="location.href='/docs'"><span class="icon">📄</span>API 문서</div>
+  </div>
+  <div class="nav-group">
+    <div class="group-label">관리</div>
+    <div class="nav-item" onclick="location.href='/review/list'"><span class="icon">📋</span>승인 관리</div>
+    <div class="nav-item" onclick="location.href='/agents'"><span class="icon">🤖</span>에이전트</div>
+  </div>
+  <div class="nav-group">
+    <div class="group-label">도구</div>
+    <div class="nav-item" onclick="openKw()"><span class="icon">🔑</span>키워드 리서치</div>
+    <div class="nav-item" onclick="openCache()"><span class="icon">💾</span>캐시 관리</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="server-status"><span class="pulse"></span>서버 정상 운영중</div>
+  </div>
+</aside>
+
+<!-- 메인 -->
+<div class="main">
+  <div class="topbar">
+    <h2>대시보드</h2>
+    <div class="right"><span id="ck">--:--</span></div>
+  </div>
+
+  <div class="content">
+    <!-- KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">검토 대기</div><div class="number" style="color:var(--orange)" id="kP">0</div><div class="detail">내 승인 필요</div></div>
+      <div class="kpi-card"><div class="label">승인 완료</div><div class="number" style="color:var(--green)" id="kA">0</div><div class="detail">등록 가능</div></div>
+      <div class="kpi-card"><div class="label">수정 필요</div><div class="number" style="color:var(--red)" id="kE">0</div><div class="detail">재검토 대상</div></div>
+      <div class="kpi-card"><div class="label">등록 현황</div><div class="number" style="color:var(--primary)" id="kL">0</div><div class="detail">/ 1,000 한도</div><div class="limit-bar"><div class="limit-fill" id="limB"></div></div></div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <!-- 입력 -->
+        <div class="input-card">
+          <div class="title">새 상품 분석</div>
+          <div class="desc">상품 정보만 입력하면 소싱 리스크, 마진, 상세페이지, 광고 전략까지 에이전트가 알아서 처리합니다.</div>
+          <div class="f-row">
+            <div class="f" style="flex:3"><div class="lbl">상품명</div><input id="inT" placeholder="타오바오 · iHerb · 라쿠텐에서 복사" autofocus></div>
+            <div class="f" style="flex:1"><div class="lbl">매입가</div><input type="number" id="inP" placeholder="가격" step="0.1"></div>
+            <div class="f" style="flex:1"><div class="lbl">국가</div><select id="inC"><option value="CN">🇨🇳 중국</option><option value="US">🇺🇸 미국</option><option value="JP">🇯🇵 일본</option><option value="VN">🇻🇳 베트남</option></select></div>
+          </div>
+          <span class="more-toggle" onclick="this.nextElementSibling.classList.toggle('open')">+ 상세 옵션</span>
+          <div class="more-fields">
+            <div class="f-row"><div class="f"><div class="lbl">카테고리</div><select id="inCa"><option value="general">일반</option><option value="wellness">웰니스</option><option value="supplement">영양제</option><option value="beauty">뷰티</option><option value="fitness">피트니스</option></select></div><div class="f"><div class="lbl">타겟 고객</div><input id="inTg" placeholder="예: 30대 직장인 여성"></div></div>
+            <div class="f-row"><div class="f"><div class="lbl">특징</div><input id="inFt" placeholder="쉼표 구분"></div><div class="f"><div class="lbl">경쟁사</div><input id="inCp" placeholder="쉼표 구분"></div></div>
+          </div>
+          <button class="go-btn" id="goBtn" onclick="run()">분석 시작</button>
+          <div class="steps" id="steps">
+            <div class="stp" id="s1"><b></b>소싱 리스크 분석</div>
+            <div class="stp" id="s2"><b></b>11변수 마진 계산</div>
+            <div class="stp" id="s3"><b></b>등록 가치 점수</div>
+            <div class="stp" id="s4"><b></b>상품명 · 상세페이지 · 광고 전략</div>
+          </div>
+        </div>
+
+        <!-- 결과 -->
+        <div class="result" id="res">
+          <div class="verdict-card" id="verdict"></div>
+          <div id="cards"></div>
+          <div class="actions">
+            <button class="act act-ok" onclick="doOk()">승인 — 등록 진행</button>
+            <button class="act act-edit" onclick="doEdit()">수정 지시</button>
+            <button class="act act-no" onclick="doNo()">폐기</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 사이드 패널 -->
+      <div>
+        <div class="side-card">
+          <div class="sc-title">처리 내역</div>
+          <div class="q-tabs"><span class="qt on" onclick="qT(this,'pending')">대기</span><span class="qt" onclick="qT(this,'approved')">승인</span><span class="qt" onclick="qT(this,'needs_edit')">수정</span></div>
+          <div id="qList"><div class="empty-msg">로딩 중...</div></div>
+        </div>
+
+        <div class="side-card" id="kwCard" style="display:none">
+          <div class="sc-title">키워드 리서치</div>
+          <div class="f-row"><div class="f"><input id="kwIn" placeholder="키워드 입력"></div></div>
+          <button class="go-btn" style="height:38px;font-size:12px" onclick="runKw()">분석</button>
+          <div id="kwRes" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+setInterval(()=>{document.getElementById('ck').textContent=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})},1000);
+
+async function kpi(){try{const d=await(await fetch('/api/stats')).json();document.getElementById('kP').textContent=d.pending||0;document.getElementById('kA').textContent=d.approved||0;document.getElementById('kE').textContent=d.needs_edit||0;const n=d.approved||0;document.getElementById('kL').textContent=n;document.getElementById('limB').style.width=Math.min(100,n/10)+'%'}catch(e){}}
+kpi();setInterval(kpi,20000);
+
+function ss(id,s){const e=document.getElementById(id);e.className='stp '+s;e.querySelector('b').textContent=s==='ok'?'✓':s==='err'?'✕':''}
+
+async function run(){
+  const t=document.getElementById('inT').value.trim(),p=parseFloat(document.getElementById('inP').value);
+  if(!t){document.getElementById('inT').focus();return}
+  if(!p){document.getElementById('inP').focus();return}
+  const btn=document.getElementById('goBtn');btn.disabled=true;btn.textContent='처리 중...';
+  document.getElementById('steps').classList.add('on');document.getElementById('res').classList.remove('on');
+  ['s1','s2','s3','s4'].forEach(s=>ss(s,''));ss('s1','run');
+  try{
+    const r=await fetch('/api/premium/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:t,price_cny:p,source_country:document.getElementById('inC').value,category:document.getElementById('inCa').value,target_customer:document.getElementById('inTg').value,key_features:document.getElementById('inFt').value.split(',').map(s=>s.trim()).filter(Boolean),competitors:document.getElementById('inCp').value.split(',').map(s=>s.trim()).filter(Boolean),weight_kg:.5,description:''})});
+    ss('s1','ok');ss('s2','run');const data=await r.json();
+    if(data.status==='completed'){ss('s2','ok');ss('s3','ok');ss('s4','ok');render(data)}
+    else{ss('s2','err');alert('실패: '+(data.detail||''))}
+  }catch(e){ss('s1','err');alert(e.message)}
+  btn.disabled=false;btn.textContent='새 상품 분석';
+}
+
+function render(data){
+  const s=data.sourcing||{},p=data.pricing||{},sc=data.score||{},d=data.detail_page||{};
+  const ti=d.product_titles||{},hk=d.hook_copies||[],secs=d.naver_detail_page?.sections||[],ad=d.ad_strategy||{},seo=d.seo_strategy||{},faq=d.faq||[];
+  let v=`<div class="grade-pill g${sc.grade||'C'}">${sc.grade||'?'}등급 · ${(sc.total||0).toFixed(0)}점 · ${sc.decision||''}</div>`;
+  v+=`<div class="metric-strip"><div class="met"><div class="v" style="color:var(--green)">₩${(p.final_price||0).toLocaleString()}</div><div class="l">판매가</div></div><div class="met"><div class="v" style="color:var(--primary)">${(p.margin_rate||0).toFixed(1)}%</div><div class="l">순마진</div></div><div class="met"><div class="v" style="color:var(--orange)">${p.breakeven_qty||'?'}개</div><div class="l">손익분기</div></div><div class="met"><div class="v" style="color:var(--sub)">${s.sourcing_decision||'?'}</div><div class="l">소싱</div></div></div>`;
+  document.getElementById('verdict').innerHTML=v;
+  let c='';
+  const fl=s.risk_flags||[];if(fl.length)c+=`<div class="risk">⚠ 리스크: ${fl.join(', ')}</div>`;
+  if(ti.smartstore||ti.coupang)c+=sec('상품명',`${ti.smartstore?`<div class="ttl-box"><div class="ch">스마트스토어</div><div class="tx">${ti.smartstore}</div></div>`:''}${ti.coupang?`<div class="ttl-box"><div class="ch">쿠팡</div><div class="tx">${ti.coupang}</div></div>`:''}`);
+  if(hk.length)c+=sec('후크 카피',hk.map(h=>`<div class="hook">${h}</div>`).join(''));
+  if(secs.length){let b='';secs.forEach(s=>{b+=`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--primary);margin-bottom:3px">${s.section_name}</div><div class="cprev">${s.content}</div>${s.image_guide?`<div style="font-size:10px;color:var(--dim);margin-top:3px">📷 ${s.image_guide}</div>`:''}</div>`});c+=sec('상세페이지',b,1)}
+  if(ad.keywords?.length){let b=`<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:11px;color:var(--sub)"><span>일예산 ₩${(ad.daily_budget_krw||0).toLocaleString()}</span><span>${(ad.peak_hours||[]).join(', ')}</span></div>`;ad.keywords.slice(0,6).forEach(k=>{b+=`<div class="kwr"><span>${k.keyword}</span><span class="c">₩${(k.estimated_cpc||0).toLocaleString()} · ${k.competition||''}</span></div>`});if(ad.ad_titles?.length){b+='<div style="margin-top:10px;font-size:10px;color:var(--dim)">광고 제목</div>';ad.ad_titles.forEach(t=>{b+=`<div style="font-size:12px;padding:2px 0;font-weight:600">${t}</div>`})}c+=sec('검색광고',b)}
+  const tags=seo.shopping_tags||[];if(tags.length)c+=sec('SEO 태그',tags.map(t=>`<span class="tg">${t}</span>`).join(''));
+  if(faq.length){let b='';faq.forEach(f=>{if(typeof f==='object')b+=`<div style="margin-bottom:8px"><div style="font-weight:600;font-size:12px">Q. ${f.q||''}</div><div style="font-size:12px;color:var(--sub)">A. ${f.a||''}</div></div>`});c+=sec('FAQ',b,1)}
+  document.getElementById('cards').innerHTML=c;document.getElementById('res').classList.add('on');document.getElementById('res').scrollIntoView({behavior:'smooth',block:'start'});kpi();
+}
+function sec(t,b,hide){const id='s'+Math.random().toString(36).substr(2,4);return `<div class="sec"><div class="sec-head" onclick="document.getElementById('${id}').classList.toggle('hide')">${t}<span style="font-size:9px">▾</span></div><div class="sec-body${hide?' hide':''}" id="${id}">${b}</div></div>`}
+
+function doOk(){alert('✅ 승인\n스마트스토어/쿠팡에 등록하세요.');document.getElementById('res').classList.remove('on');kpi()}
+function doEdit(){const n=prompt('수정할 부분:');if(n)alert('수정 지시 전달: '+n)}
+function doNo(){if(confirm('폐기?'))document.getElementById('res').classList.remove('on')}
+
+/* queue */
+async function qT(el,st){document.querySelectorAll('.qt').forEach(t=>t.classList.remove('on'));el.classList.add('on');const l=document.getElementById('qList');try{const items=await(await fetch('/api/queue?status='+st)).json();if(!items?.length){l.innerHTML='<div class="empty-msg">항목 없음</div>';return}l.innerHTML=items.map(i=>`<div class="qi"><div><div class="t">${(i.source_title||'').substring(0,40)}</div><div class="d">${(i.updated_at||'').substring(0,10)}</div></div><span class="qbadge qb-${i.reviewer_status}">${i.reviewer_status}</span></div>`).join('')}catch(e){l.innerHTML='<div class="empty-msg">'+e.message+'</div>'}}
+qT(document.querySelector('.qt'),'pending');
+
+function openKw(){const c=document.getElementById('kwCard');c.style.display=c.style.display==='none'?'block':'none'}
+async function runKw(){const k=document.getElementById('kwIn').value;if(!k)return;const d=document.getElementById('kwRes');d.innerHTML='<div class="empty-msg">분석 중...</div>';try{const r=await(await fetch('/api/keyword/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keyword:k,category:'general'})})).json();const m=r.result||r;let h='';(m.main_keywords||[]).forEach(k=>{h+=`<div class="kwr"><span>${k.keyword}</span><span class="c">₩${(k.cpc_krw||0).toLocaleString()}</span></div>`});const tg=(m.shopping_tags||[]).slice(0,8);if(tg.length)h+='<div style="margin-top:8px">'+tg.map(t=>`<span class="tg">${t}</span>`).join('')+'</div>';d.innerHTML=h||'결과 없음'}catch(e){d.innerHTML='오류'}}
+function openCache(){fetch('/api/cache/stats').then(r=>r.json()).then(d=>{alert(`캐시 통계\n항목: ${d.total_entries||0}개\n히트: ${d.total_hits||0}회\n절감: $${(d.estimated_cost_saved_usd||0).toFixed(4)}`)}).catch(()=>alert('로드 실패'))}
+</script>
+</body>
+</html>

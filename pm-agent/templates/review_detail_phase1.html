@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상품 기획 워크벤치 - PM Agent Console</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/console.css">
+    <style>
+        .section-card {
+            margin-bottom: 1.5rem;
+        }
+        .section-header {
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .editable-field {
+            background-color: #fffacd !important;
+            border: 1px solid #ffc107;
+        }
+        .readonly-field {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+        }
+        .btn-generate {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-generate:hover {
+            background-color: #218838;
+            color: white;
+        }
+        .priority-badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            margin-left: 0.5rem;
+        }
+        .priority-high {
+            background-color: #dc3545;
+            color: white;
+        }
+        .priority-medium {
+            background-color: #ffc107;
+            color: #000;
+        }
+        .priority-low {
+            background-color: #6c757d;
+            color: white;
+        }
+        .list-group-item-action:hover {
+            background-color: #f1f3f5;
+        }
+        .badge-risk-low {
+            background-color: #28a745;
+        }
+        .badge-risk-medium {
+            background-color: #ffc107;
+            color: #000;
+        }
+        .badge-risk-high {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-3">
+        <div class="container-fluid">
+            <div>
+                <a href="/" class="btn btn-sm btn-outline-light me-2">🏠 운영 대시보드</a>
+                <a href="/review/list" class="btn btn-sm btn-outline-light me-2">📋 목록</a>
+                <span class="navbar-brand mb-0">상품 기획 워크벤치</span>
+            </div>
+            <span class="navbar-text text-white" id="reviewIdDisplay">-</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <!-- ==================== -->
+        <!-- Section 1: 소싱 정보 -->
+        <!-- ==================== -->
+        <div class="card section-card border-primary">
+            <div class="section-header bg-primary text-white">
+                1. 📦 소싱 정보
+                <span class="priority-badge priority-high">필수</span>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold small">소스 URL</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control readonly-field" id="sourceUrl" readonly>
+                            <a href="#" target="_blank" class="btn btn-sm btn-outline-primary" id="sourceUrlLink">열기</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold small">원본 상품명</label>
+                        <input type="text" class="form-control readonly-field" id="sourceTitle" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">카테고리</label>
+                        <input type="text" class="form-control readonly-field" id="sourceCategory" readonly>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">소싱가 (CNY)</label>
+                        <input type="text" class="form-control readonly-field" id="sourcePriceCny" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">중량 (kg)</label>
+                        <input type="text" class="form-control readonly-field" id="sourceWeight" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">소싱 판정</label>
+                        <input type="text" class="form-control readonly-field" id="sourcingDecision" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">점수</label>
+                        <input type="text" class="form-control readonly-field" id="reviewScore" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 2: 리스크 평가 -->
+        <!-- ==================== -->
+        <div class="card section-card border-warning">
+            <div class="section-header bg-warning">
+                2. ⚠️ 리스크 평가
+                <span class="priority-badge priority-high">필수</span>
+                <button class="btn btn-sm btn-generate float-end" onclick="generateRiskAssessment()">
+                    🔄 리스크 재평가
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">최종 판정</label>
+                        <input type="text" class="form-control readonly-field" id="riskFinalDecision" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">리스크 레벨</label>
+                        <input type="text" class="form-control readonly-field" id="riskLevel" readonly>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold small">지재권 주의사항</label>
+                    <textarea class="form-control editable-field" id="riskIpNotes" rows="2"></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold small">표현 주의사항</label>
+                    <textarea class="form-control editable-field" id="riskClaimNotes" rows="2"></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold small">컴플라이언스 주의사항</label>
+                    <textarea class="form-control editable-field" id="riskComplianceNotes" rows="2"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 3: 상품 핵심 요약 (NEW) -->
+        <!-- ==================== -->
+        <div class="card section-card border-success">
+            <div class="section-header bg-success text-white">
+                3. 📋 상품 핵심 요약
+                <span class="priority-badge priority-high">필수</span>
+                <button class="btn btn-sm btn-generate float-end" onclick="generateSummary()">
+                    ✨ 요약 생성
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">포지셔닝 요약</label>
+                    <textarea class="form-control editable-field" id="positioningSummary" rows="2"
+                        placeholder="이 상품의 핵심 포지셔닝을 한 문장으로 설명하세요"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">USP 포인트 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="uspPoints" rows="3"
+                        placeholder="- 이 상품만의 독특한 판매 포인트를 나열하세요"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">타겟 고객</label>
+                    <textarea class="form-control editable-field" id="targetCustomer" rows="2"
+                        placeholder="누가 이 상품을 구매할까요?"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">사용 시나리오 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="usageScenarios" rows="3"
+                        placeholder="- 고객이 이 상품을 언제, 어떻게 사용할까요?"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">차별화 포인트</label>
+                    <textarea class="form-control editable-field" id="differentiationPoints" rows="2"
+                        placeholder="경쟁사 대비 이 상품의 차별점은?"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">검색 의도 요약</label>
+                    <textarea class="form-control editable-field" id="searchIntentSummary" rows="2"
+                        placeholder="고객이 이 상품을 검색할 때의 의도와 니즈는?"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 4: 채널 기본 등록 정보 (기존, 우선순위 하락) -->
+        <!-- ==================== -->
+        <div class="card section-card border-info">
+            <div class="section-header bg-info text-white">
+                4. 🏷️ 채널 기본 등록 정보
+                <span class="priority-badge priority-medium">중간</span>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="form-label fw-bold small">네이버 제목</label>
+                    <input type="text" class="form-control editable-field" id="naverTitle">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold small">네이버 설명</label>
+                    <textarea class="form-control editable-field" id="naverDescription" rows="2"></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold small">쿠팡 제목</label>
+                    <input type="text" class="form-control editable-field" id="coupangTitle">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold small">가격 (원)</label>
+                    <input type="number" class="form-control editable-field" id="generatedPrice">
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 5: 상세페이지 기획 (NEW - 가장 중요) -->
+        <!-- ==================== -->
+        <div class="card section-card border-primary">
+            <div class="section-header bg-primary text-white">
+                5. 📝 상세페이지 콘텐츠 기획
+                <span class="priority-badge priority-high">최우선</span>
+                <button class="btn btn-sm btn-generate float-end" onclick="generateDetailContent()">
+                    ✨ 콘텐츠 생성
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">메인 타이틀</label>
+                    <input type="text" class="form-control editable-field" id="mainTitle"
+                        placeholder="상세페이지 최상단 메인 헤드라인">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">훅 카피 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="hookCopies" rows="3"
+                        placeholder="- 고객의 관심을 끄는 짧은 문구들"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">핵심 혜택 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="keyBenefits" rows="3"
+                        placeholder="- 고객이 얻는 구체적인 혜택들"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">문제 시나리오 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="problemScenarios" rows="3"
+                        placeholder="- 고객이 겪는 문제 상황들"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">솔루션 내러티브</label>
+                    <textarea class="form-control editable-field" id="solutionNarrative" rows="4"
+                        placeholder="이 상품이 어떻게 문제를 해결하는지 이야기 형식으로 설명"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">사용 가이드</label>
+                    <textarea class="form-control editable-field" id="usageGuide" rows="3"
+                        placeholder="상품 사용 방법"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">주의사항</label>
+                    <textarea class="form-control editable-field" id="cautions" rows="2"
+                        placeholder="사용 시 주의사항"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">FAQ (Q&A 형식)</label>
+                    <textarea class="form-control editable-field" id="faq" rows="5"
+                        placeholder="Q: 질문?\nA: 답변\n\nQ: 질문?\nA: 답변"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">네이버 상세 본문</label>
+                    <textarea class="form-control editable-field" id="naverBody" rows="6"
+                        placeholder="네이버 스마트스토어용 상세페이지 텍스트"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">쿠팡 상세 본문</label>
+                    <textarea class="form-control editable-field" id="coupangBody" rows="6"
+                        placeholder="쿠팡용 상세페이지 텍스트"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">짧은 광고 문구 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="shortAdCopies" rows="3"
+                        placeholder="- SNS, 검색 광고용 짧은 카피들"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 6: 이미지 리디자인 기획 (NEW) -->
+        <!-- ==================== -->
+        <div class="card section-card border-purple">
+            <div class="section-header" style="background-color: #6f42c1; color: white;">
+                6. 🎨 이미지 리디자인 기획
+                <span class="priority-badge priority-high">필수</span>
+                <button class="btn btn-sm btn-generate float-end" onclick="generateImageDesign()">
+                    ✨ 디자인 가이드 생성
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">메인 썸네일 카피</label>
+                    <input type="text" class="form-control editable-field" id="mainThumbnailCopy"
+                        placeholder="메인 썸네일에 들어갈 핵심 문구">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">서브 썸네일 카피 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="subThumbnailCopies" rows="3"
+                        placeholder="- 서브 썸네일별 카피"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">배너 카피</label>
+                    <input type="text" class="form-control editable-field" id="bannerCopy"
+                        placeholder="상단 배너 문구">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">섹션별 카피 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="sectionCopies" rows="3"
+                        placeholder="- 상세페이지 각 섹션별 헤드라인"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">레이아웃 가이드</label>
+                    <textarea class="form-control editable-field" id="layoutGuide" rows="3"
+                        placeholder="이미지 레이아웃, 구성 방식"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">톤앤매너</label>
+                    <textarea class="form-control editable-field" id="toneManner" rows="2"
+                        placeholder="색상, 분위기, 폰트 스타일"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">금지 표현 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="forbiddenExpressions" rows="3"
+                        placeholder="- 이미지에 절대 사용하면 안되는 표현들"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">이미지 생성 프롬프트</label>
+                    <textarea class="form-control editable-field" id="generationPrompt" rows="4"
+                        placeholder="AI 이미지 생성 도구에 입력할 프롬프트"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">이미지 편집 프롬프트</label>
+                    <textarea class="form-control editable-field" id="editPrompt" rows="4"
+                        placeholder="디자이너에게 전달할 편집 지시사항"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 7: 판매 전략 (NEW) -->
+        <!-- ==================== -->
+        <div class="card section-card border-warning">
+            <div class="section-header bg-warning">
+                7. 💰 판매 전략
+                <span class="priority-badge priority-high">필수</span>
+                <button class="btn btn-sm btn-generate float-end" onclick="generateSalesStrategy()">
+                    ✨ 전략 생성
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">타겟 오디언스</label>
+                    <textarea class="form-control editable-field" id="targetAudience" rows="2"
+                        placeholder="누구에게 팔 것인가?"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">광고 포인트 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="adPoints" rows="3"
+                        placeholder="- 광고에서 강조할 포인트들"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">1차 키워드 (쉼표로 구분)</label>
+                    <input type="text" class="form-control editable-field" id="primaryKeywords"
+                        placeholder="핵심 검색 키워드">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">2차 키워드 (쉼표로 구분)</label>
+                    <input type="text" class="form-control editable-field" id="secondaryKeywords"
+                        placeholder="보조 검색 키워드">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">해시태그 (쉼표로 구분)</label>
+                    <input type="text" class="form-control editable-field" id="hashtags"
+                        placeholder="#해시태그1, #해시태그2">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">리뷰 포인트 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="reviewPoints" rows="3"
+                        placeholder="- 고객들이 리뷰에서 언급하기 바라는 포인트"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">가격 포지셔닝</label>
+                    <textarea class="form-control editable-field" id="pricePositioning" rows="2"
+                        placeholder="경쟁사 대비 가격 전략"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">판매 채널 (쉼표로 구분)</label>
+                    <input type="text" class="form-control editable-field" id="salesChannels"
+                        placeholder="네이버, 쿠팡, 브랜드몰 등">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">경쟁 우위 각도 (각 줄에 하나씩)</label>
+                    <textarea class="form-control editable-field" id="competitiveAngles" rows="3"
+                        placeholder="- 경쟁사 대비 우리의 강점"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 8: 이미지 검토 (기존, 이미지 없어도 작동) -->
+        <!-- ==================== -->
+        <div class="card section-card border-secondary">
+            <div class="section-header">
+                8. 🖼️ 이미지 검토
+                <span class="priority-badge priority-low">선택</span>
+            </div>
+            <div class="card-body">
+                <div id="imageReviewSection">
+                    <p class="text-muted small">이미지가 등록되면 여기에 표시됩니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 9: 워크플로우 & CSV 내보내기 (기존, 최하단) -->
+        <!-- ==================== -->
+        <div class="card section-card border-dark">
+            <div class="section-header">
+                9. 🔄 워크플로우 & 내보내기
+                <span class="priority-badge priority-low">최종</span>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">검수 상태</label>
+                        <input type="text" class="form-control readonly-field" id="reviewStatus" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">마지막 업데이트</label>
+                        <input type="text" class="form-control readonly-field" id="lastUpdated" readonly>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">검수 메모</label>
+                    <textarea class="form-control editable-field" id="reviewNotes" rows="3"></textarea>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-primary" onclick="saveAllContent()">💾 전체 저장</button>
+                    <button class="btn btn-success" onclick="generateAllContent()">✨ 전체 콘텐츠 생성</button>
+                    <button class="btn btn-warning" onclick="holdReview()">⏸️ 보류</button>
+                    <button class="btn btn-danger" onclick="rejectReview()">❌ 거부</button>
+                    <button class="btn btn-info" onclick="approveForExport()">✅ 내보내기 승인</button>
+                    <button class="btn btn-secondary" onclick="exportToNaverCSV()">📥 네이버 CSV</button>
+                    <button class="btn btn-secondary" onclick="exportToCoupangCSV()">📥 쿠팡 CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== -->
+        <!-- Section 10: 생성 로그 (선택) -->
+        <!-- ==================== -->
+        <div class="card section-card border-secondary">
+            <div class="section-header">
+                10. 📊 생성 정보
+                <span class="priority-badge priority-low">참고</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">콘텐츠 생성 시각</label>
+                        <input type="text" class="form-control readonly-field" id="contentGeneratedAt" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">검수자</label>
+                        <input type="text" class="form-control readonly-field" id="contentReviewer" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/review_detail_phase1.js"></script>
+</body>
+</html>

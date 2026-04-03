@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git rm:*)",
+      "Bash(git config:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c ':*)",
+      "Bash(xargs wc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(docker --version)",
+      "Bash(docker info:*)",
+      "Bash(tasklist)",
+      "Bash(netstat -ano)"
+    ]
+  }
+}

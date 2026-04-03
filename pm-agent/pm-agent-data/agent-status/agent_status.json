@@ -1,0 +1,77 @@
+{
+  "agents": {
+    "image_localization": {
+      "name": "ImageLocalization Agent",
+      "status": "idle",
+      "current_task": null,
+      "last_updated": "2026-04-01T02:51:38.054645",
+      "total_executions": 1,
+      "success_count": 0,
+      "failure_count": 1
+    },
+    "margin_check": {
+      "name": "MarginCheck Agent",
+      "status": "completed",
+      "current_task": null,
+      "last_updated": "2026-04-01T07:15:42.206108",
+      "total_executions": 35,
+      "success_count": 35,
+      "failure_count": 0
+    },
+    "daily_scout_status": {
+      "name": "DailyScoutStatus Agent",
+      "status": "idle",
+      "current_task": null,
+      "last_updated": "2026-04-01T01:38:01.563252",
+      "total_executions": 0,
+      "success_count": 0,
+      "failure_count": 0
+    },
+    "sourcing": {
+      "name": "Sourcing Agent",
+      "status": "completed",
+      "current_task": null,
+      "last_updated": "2026-04-01T07:15:42.202005",
+      "total_executions": 40,
+      "success_count": 39,
+      "failure_count": 0
+    },
+    "content": {
+      "name": "Content Agent",
+      "status": "idle",
+      "current_task": null,
+      "last_updated": "2026-04-01T01:38:01.563255",
+      "total_executions": 0,
+      "success_count": 0,
+      "failure_count": 0
+    },
+    "pricing": {
+      "name": "Pricing Agent",
+      "status": "idle",
+      "current_task": null,
+      "last_updated": "2026-04-01T02:39:11.472153",
+      "total_executions": 1,
+      "success_count": 1,
+      "failure_count": 0
+    },
+    "cs": {
+      "name": "CS Agent",
+      "status": "idle",
+      "current_task": null,
+      "last_updated": "2026-04-01T01:38:01.563262",
+      "total_executions": 0,
+      "success_count": 0,
+      "failure_count": 0
+    },
+    "product_registration": {
+      "name": "ProductRegistration Agent",
+      "status": "idle",
+      "current_task": null,
+      "last_updated": "2026-04-01T01:38:01.563263",
+      "total_executions": 0,
+      "success_count": 0,
+      "failure_count": 0
+    }
+  },
+  "last_workflow": "wf-20260401-071541"
+}

@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: fortimove_images
+      POSTGRES_USER: fortimove
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fortimove"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (캐시 및 작업 큐)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI 백엔드
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=postgresql://fortimove:${DB_PASSWORD:-changeme}@db:5432/fortimove_images
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - DEBUG=false
+    volumes:
+      - ./backend/app:/app/app
+      - image_storage:/tmp/fortimove-images
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Celery Worker (백그라운드 작업)
+  celery_worker:
+    build: ./backend
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql://fortimove:${DB_PASSWORD:-changeme}@db:5432/fortimove_images
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./backend/app:/app/app
+      - image_storage:/tmp/fortimove-images
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+
+  # 프론트엔드 웹 인터페이스
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Daily Wellness Scout (자동 트렌드 모니터링 에이전트)
+  daily_scout:
+    build: ../daily-scout
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      - SCHEDULE_TIME=${SCOUT_SCHEDULE_TIME:-09:00}
+      - RUN_IMMEDIATELY=${SCOUT_RUN_IMMEDIATELY:-false}
+      - EMAIL_SENDER=${SCOUT_EMAIL_SENDER}
+      - EMAIL_PASSWORD=${SCOUT_EMAIL_PASSWORD}
+      - EMAIL_RECIPIENTS=${SCOUT_EMAIL_RECIPIENTS}
+      - SLACK_WEBHOOK_URL=${SCOUT_SLACK_WEBHOOK_URL}
+      - SLACK_URGENT_WEBHOOK_URL=${SCOUT_SLACK_URGENT_WEBHOOK_URL:-}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=fortimove_images
+      - DB_USER=fortimove
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+    volumes:
+      - ../daily-scout/app:/app/app
+      - scout_logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # PM Agent (에이전트 오케스트레이션 + 승인 큐 + API)
+  pm_agent:
+    build: ../pm-agent
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - ALLOW_LOCAL_NOAUTH=${ALLOW_LOCAL_NOAUTH:-true}
+      - JWT_SECRET=${SECRET_KEY:-change-me}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8001,http://localhost:8050
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=fortimove_images
+      - DB_USER=fortimove
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+    volumes:
+      - pm_agent_data:/app/data
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # MD Dashboard (웰니스 소싱 데이터 대시보드)
+  scout_dashboard:
+    build: ../daily-scout/dashboard
+    ports:
+      - "8050:8050"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=fortimove_images
+      - DB_USER=fortimove
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  image_storage:
+  scout_logs:
+  pm_agent_data:
