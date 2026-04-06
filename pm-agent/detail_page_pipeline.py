@@ -8,6 +8,7 @@ Detail Page Pipeline — 상세페이지 리디자인 파이프라인 오케스�
 4. 이미지 합성 → DetailPageComposer (PIL로 최종 이미지 세트)
 """
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -56,8 +57,8 @@ def _image_hash(path: str) -> str:
         return hashlib.md5(path.encode()).hexdigest()
 
 
-def _remove_background(img_bytes: bytes) -> Optional[bytes]:
-    """rembg를 이용하여 이미지 배경 제거. 실패 시 None 반환."""
+def _remove_background_sync(img_bytes: bytes) -> Optional[bytes]:
+    """rembg를 이용하여 이미지 배경 제거 (동기, CPU-intensive)."""
     try:
         from rembg import remove
         return remove(img_bytes)
@@ -67,6 +68,12 @@ def _remove_background(img_bytes: bytes) -> Optional[bytes]:
     except Exception as e:
         logger.warning(f"배경 제거 실패: {e}")
         return None
+
+
+async def _remove_background(img_bytes: bytes) -> Optional[bytes]:
+    """rembg 배경 제거를 스레드풀에서 실행 (이벤트 루프 차단 방지)."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _remove_background_sync, img_bytes)
 
 
 async def _remove_text_gemini(img_bytes: bytes) -> bytes:
@@ -137,13 +144,15 @@ async def _preprocess_images(source_images: List[str], output_dir: Path) -> List
     preprocessed_dir = output_dir / "preprocessed"
     preprocessed_dir.mkdir(parents=True, exist_ok=True)
 
-    # Phase 1: 빈 이미지 필터링
+    # Phase 1: 빈 이미지 필터링 (CPU-intensive → executor)
+    loop = asyncio.get_event_loop()
     valid_images = []
     for path in source_images:
         if not Path(path).exists():
             logger.warning(f"이미지 경로 존재하지 않음: {path}")
             continue
-        if _is_blank_image(path):
+        is_blank = await loop.run_in_executor(None, _is_blank_image, path)
+        if is_blank:
             logger.info(f"빈 플레이스홀더 필터링: {path}")
             continue
         valid_images.append(path)
@@ -152,11 +161,11 @@ async def _preprocess_images(source_images: List[str], output_dir: Path) -> List
         logger.warning("전처리 후 유효 이미지 없음 — 원본 이미지 사용")
         valid_images = [p for p in source_images if Path(p).exists()]
 
-    # Phase 2: 중복 제거
+    # Phase 2: 중복 제거 (해시 계산 → executor)
     seen_hashes: Dict[str, str] = {}
     deduplicated = []
     for path in valid_images:
-        h = _image_hash(path)
+        h = await loop.run_in_executor(None, _image_hash, path)
         if h in seen_hashes:
             logger.info(f"중복 이미지 제거: {path} (중복 원본: {seen_hashes[h]})")
             continue
@@ -177,7 +186,7 @@ async def _preprocess_images(source_images: List[str], output_dir: Path) -> List
             src_bytes = Path(src_path).read_bytes()
 
             # 3-a. 배경 제거
-            bg_removed = _remove_background(src_bytes)
+            bg_removed = await _remove_background(src_bytes)
             working_bytes = bg_removed if bg_removed else src_bytes
 
             # 배경 제거 버전도 별도 저장 (투명 배경)

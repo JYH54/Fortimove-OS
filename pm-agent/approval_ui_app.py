@@ -1814,13 +1814,13 @@ app.include_router(review_console_router)
 from content_generation_api import router as content_generation_router
 app.include_router(content_generation_router)
 
-# Redesign Pipeline API Router
+# Redesign Pipeline API Router (인증 필수)
 from redesign_api import router as redesign_router
-app.include_router(redesign_router)
+app.include_router(redesign_router, dependencies=[Depends(verify_admin_token)])
 
-# Image Editor API Router
+# Image Editor API Router (인증 필수)
 from image_editor_api import router as editor_router
-app.include_router(editor_router)
+app.include_router(editor_router, dependencies=[Depends(verify_admin_token)])
 
 # COO Agent API Router
 from coo_api import router as coo_router

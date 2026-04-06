@@ -95,6 +95,10 @@ async def translate_image(
 
 # ── 2. 크기 변형 ─────────────────────────────────────────
 
+MAX_DIMENSION = 10000  # px — prevent memory-bomb resize attacks
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
 @router.post("/resize")
 async def resize_image(
     file: UploadFile = File(...),
@@ -102,6 +106,10 @@ async def resize_image(
     height: int = Form(...),
 ):
     """이미지 리사이즈"""
+    if width <= 0 or height <= 0:
+        raise HTTPException(400, "가로/세로는 양수여야 합니다.")
+    if width > MAX_DIMENSION or height > MAX_DIMENSION:
+        raise HTTPException(400, f"최대 {MAX_DIMENSION}px까지 허용됩니다.")
     img = _load_image(file)
     resized = img.resize((width, height), Image.LANCZOS)
     return _image_response(resized)
@@ -180,8 +188,10 @@ async def remove_background(
     img_bytes = await file.read()
 
     try:
+        import asyncio
         from rembg import remove
-        result_bytes = remove(img_bytes)
+        loop = asyncio.get_event_loop()
+        result_bytes = await loop.run_in_executor(None, remove, img_bytes)
         result = Image.open(io.BytesIO(result_bytes)).convert("RGBA")
 
         if bg_color == "white":
@@ -317,19 +327,23 @@ async def _gemini_inpaint(img_bytes: bytes, mask_bytes: bytes, prompt: str) -> b
     img_part = types.Part.from_bytes(data=img_bytes, mime_type="image/png")
     mask_part = types.Part.from_bytes(data=mask_bytes, mime_type="image/png")
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash-image",
-        contents=[
-            f"Edit this image using the mask. Mask shows area to modify. {prompt}",
-            img_part,
-            mask_part,
-        ],
-        config=types.GenerateContentConfig(
-            response_modalities=["IMAGE", "TEXT"],
-        ),
-    )
-
     import logging as _log
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[
+                f"Edit this image using the mask. Mask shows area to modify. {prompt}",
+                img_part,
+                mask_part,
+            ],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE", "TEXT"],
+            ),
+        )
+    except Exception as e:
+        _log.warning(f"Gemini inpaint API 호출 실패: {e} — 원본 반환")
+        return img_bytes
+
     try:
         if response.candidates and response.candidates[0].content:
             for part in response.candidates[0].content.parts or []:
