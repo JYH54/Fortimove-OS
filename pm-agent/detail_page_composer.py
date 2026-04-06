@@ -92,6 +92,23 @@ class DetailPageComposer:
 
     # ── Text wrapping utility ────────────────────────────────
 
+    def _wrap_text_words(self, draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> List[str]:
+        """Wrap text by words (split on spaces). Better for titles with mixed scripts."""
+        words = text.split(' ')
+        lines: List[str] = []
+        current = ''
+        for word in words:
+            test = (current + ' ' + word).strip()
+            bbox = draw.textbbox((0, 0), test, font=font)
+            if bbox[2] > max_width and current:
+                lines.append(current)
+                current = word
+            else:
+                current = test
+        if current:
+            lines.append(current)
+        return lines if lines else [text]
+
     def _wrap_text(self, draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> List[str]:
         """Wrap text to fit within max_width, handling newlines."""
         lines: List[str] = []
@@ -150,12 +167,17 @@ class DetailPageComposer:
             fill=self.colors["accent"],
         )
 
-        # Main title
+        # Main title (word-based wrapping to avoid mid-word breaks)
         title_y = brand_bbox[3] + 30
-        title_lines = self._wrap_text(draw, title, self.font_title, text_area_width)
-        line_spacing = 52
+        title_font = self.font_title
+        title_lines = self._wrap_text_words(draw, title, title_font, text_area_width)
+        # If title is too long (>3 lines), reduce font size
+        if len(title_lines) > 3:
+            title_font = ImageFont.truetype(str(FONTS_DIR / "NanumGothic-Bold.ttf"), 32)
+            title_lines = self._wrap_text_words(draw, title, title_font, text_area_width)
+        line_spacing = 52 if title_font == self.font_title else 42
         for line in title_lines:
-            draw.text((pad, title_y), line, font=self.font_title, fill=self.colors["hero_text"])
+            draw.text((pad, title_y), line, font=title_font, fill=self.colors["hero_text"])
             title_y += line_spacing
 
         # Hook copy

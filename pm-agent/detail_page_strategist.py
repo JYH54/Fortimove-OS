@@ -113,6 +113,55 @@ class DetailPageStrategist:
                 self.client = None
                 self.model = None
 
+    def _parse_json_response(self, text: str) -> dict:
+        """
+        LLM 응답에서 JSON을 안전하게 추출합니다.
+
+        처리 순서:
+        1. 그대로 json.loads 시도
+        2. markdown 코드펜스(```json ... ``` 또는 ``` ... ```) 제거 후 시도
+        3. 첫 번째 '{' ~ 마지막 '}' 사이를 추출하여 시도
+        4. 모두 실패하면 빈 dict 반환
+        """
+        if not text or not text.strip():
+            return {}
+
+        # 1) 원본 그대로 시도
+        try:
+            return json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # 2) markdown 코드펜스 제거 후 시도
+        stripped = text.strip()
+        if stripped.startswith("```"):
+            # 첫 줄(```json 등)과 마지막 줄(```) 제거
+            lines = stripped.split("\n")
+            # 첫 줄이 ```로 시작하면 제거
+            if lines[0].strip().startswith("```"):
+                lines = lines[1:]
+            # 마지막 줄이 ```로 끝나면 제거
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            cleaned = "\n".join(lines).strip()
+            try:
+                return json.loads(cleaned)
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # 3) 첫 번째 '{' ~ 마지막 '}' 추출
+        first_brace = text.find("{")
+        last_brace = text.rfind("}")
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            candidate = text[first_brace:last_brace + 1]
+            try:
+                return json.loads(candidate)
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # 4) 모두 실패
+        return {}
+
     def _llm_call(self, prompt: str, max_tokens: int = 1000, temperature: float = 0.7) -> str:
         """LLM Router 또는 직접 Claude 호출"""
         if self._use_router:
@@ -275,12 +324,11 @@ JSON 형식으로만 응답하세요:
 
         response_text = self._llm_call(prompt, max_tokens=1000, temperature=0.7)
 
-        try:
-            result = json.loads(response_text)
-            return result.get("hook_copies", [])[:5]
-        except:
-            # Fallback: 룰 기반 생성
-            return self._fallback_hook_copies(product_summary, source_data)
+        result = self._parse_json_response(response_text)
+        if result.get("hook_copies"):
+            return result["hook_copies"][:5]
+        # Fallback: 룰 기반 생성
+        return self._fallback_hook_copies(product_summary, source_data)
 
     def _generate_key_benefits(
         self,
@@ -319,11 +367,10 @@ JSON 형식으로만 응답하세요:
 
         response_text = self._llm_call(prompt, max_tokens=1500, temperature=0.7)
 
-        try:
-            result = json.loads(response_text)
-            return result.get("key_benefits", [])[:7]
-        except:
-            return self._fallback_key_benefits(product_summary)
+        result = self._parse_json_response(response_text)
+        if result.get("key_benefits"):
+            return result["key_benefits"][:7]
+        return self._fallback_key_benefits(product_summary)
 
     def _generate_problem_scenarios(
         self,
@@ -360,15 +407,14 @@ JSON 형식으로만 응답하세요:
 
         response_text = self._llm_call(prompt, max_tokens=800, temperature=0.7)
 
-        try:
-            result = json.loads(response_text)
-            return result.get("problem_scenarios", [])[:3]
-        except:
-            return [
-                "건강 관리가 필요한 분",
-                "일상 활력이 부족한 분",
-                "프리미엄 품질을 찾는 분"
-            ]
+        result = self._parse_json_response(response_text)
+        if result.get("problem_scenarios"):
+            return result["problem_scenarios"][:3]
+        return [
+            "건강 관리가 필요한 분",
+            "일상 활력이 부족한 분",
+            "프리미엄 품질을 찾는 분"
+        ]
 
     def _generate_solution_narrative(
         self,
@@ -406,11 +452,10 @@ JSON 형식으로만 응답하세요:
 
         response_text = self._llm_call(prompt, max_tokens=1200, temperature=0.7)
 
-        try:
-            result = json.loads(response_text)
-            return result.get("solution_narrative", "")
-        except:
-            return f"{product_summary.get('positioning_summary', '')} 검증된 품질로 일상을 서포트합니다."
+        result = self._parse_json_response(response_text)
+        if result.get("solution_narrative"):
+            return result["solution_narrative"]
+        return f"{product_summary.get('positioning_summary', '')} 검증된 품질로 일상을 서포트합니다."
 
     def _generate_usage_guide(self, source_data: Dict, category: str) -> str:
         """사용 가이드 생성"""
@@ -480,11 +525,10 @@ JSON 형식으로만 응답하세요:
 
         response_text = self._llm_call(prompt, max_tokens=2000, temperature=0.7)
 
-        try:
-            result = json.loads(response_text)
-            return result.get("faq", [])[:7]
-        except:
-            return self._fallback_faq(category)
+        result = self._parse_json_response(response_text)
+        if result.get("faq"):
+            return result["faq"][:7]
+        return self._fallback_faq(category)
 
     def _generate_short_ad_copies(
         self,
@@ -518,15 +562,14 @@ JSON 형식으로만 응답하세요:
 
         response_text = self._llm_call(prompt, max_tokens=1000, temperature=0.8)
 
-        try:
-            result = json.loads(response_text)
-            return result.get("short_ad_copies", [])[:10]
-        except:
-            return [
-                "프리미엄 품질", "매일 건강", "검증된 브랜드",
-                "간편한 섭취", "가성비 우수", "안전한 선택",
-                "일상 활력", "꾸준한 관리", "신뢰할 수 있는", "추천 제품"
-            ]
+        result = self._parse_json_response(response_text)
+        if result.get("short_ad_copies"):
+            return result["short_ad_copies"][:10]
+        return [
+            "프리미엄 품질", "매일 건강", "검증된 브랜드",
+            "간편한 섭취", "가성비 우수", "안전한 선택",
+            "일상 활력", "꾸준한 관리", "신뢰할 수 있는", "추천 제품"
+        ]
 
     def _generate_main_title(
         self,

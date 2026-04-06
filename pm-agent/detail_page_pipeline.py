@@ -58,10 +58,24 @@ def _image_hash(path: str) -> str:
 
 
 def _remove_background_sync(img_bytes: bytes) -> Optional[bytes]:
-    """rembg를 이용하여 이미지 배경 제거 (동기, CPU-intensive)."""
+    """rembg를 이용하여 이미지 배경 제거 → 흰색 배경 합성 (동기, CPU-intensive)."""
     try:
         from rembg import remove
-        return remove(img_bytes)
+        import io
+        from PIL import Image as _PILImage
+
+        # 배경 제거 (투명 PNG)
+        removed = remove(img_bytes)
+
+        # 투명 배경 → 흰색 배경 합성
+        rgba = _PILImage.open(io.BytesIO(removed)).convert("RGBA")
+        white_bg = _PILImage.new("RGBA", rgba.size, (255, 255, 255, 255))
+        white_bg.paste(rgba, mask=rgba.split()[3])
+        result = white_bg.convert("RGB")
+
+        buf = io.BytesIO()
+        result.save(buf, format="PNG", quality=95)
+        return buf.getvalue()
     except ImportError:
         logger.info("rembg 미설치 — 배경 제거 스킵")
         return None
@@ -154,6 +168,11 @@ async def _preprocess_images(source_images: List[str], output_dir: Path) -> List
         is_blank = await loop.run_in_executor(None, _is_blank_image, path)
         if is_blank:
             logger.info(f"빈 플레이스홀더 필터링: {path}")
+            continue
+        # Also filter tiny thumbnails (under 10KB = likely thumbnail/icon)
+        file_size = Path(path).stat().st_size
+        if file_size < 10240:
+            logger.info(f"너무 작은 이미지 필터링 ({file_size//1024}KB): {path}")
             continue
         valid_images.append(path)
 

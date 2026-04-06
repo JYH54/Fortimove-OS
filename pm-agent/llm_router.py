@@ -24,7 +24,17 @@ import json
 import sqlite3
 import threading
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# .env 자동 로드 (llm_router가 다른 모듈보다 먼저 import 될 수 있음)
+try:
+    from dotenv import load_dotenv
+    _env_dir = Path(__file__).parent
+    load_dotenv(_env_dir / ".env")
+    load_dotenv(_env_dir.parent / ".env")
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -134,15 +144,15 @@ TASK_ROUTING = {
     "cs_response":         "claude",    # CS 응대 (법적 뉘앙스)
     "legal_check":         "claude",    # 법령 검토
 
-    # Gemini Flash (생성/번역/정형 출력)
-    "content_generation":  "gemini",    # 상품 콘텐츠 일괄 생성
-    "copywriting":         "gemini",    # 한국어 카피라이팅
-    "seo_metadata":        "gemini",    # SEO 메타데이터 생성
-    "translation":         "gemini",    # 중→한 번역
-    "detail_page_text":    "gemini",    # 상세페이지 텍스트
-    "sns_content":         "gemini",    # SNS/블로그 콘텐츠
-    "ad_copy":             "gemini",    # 광고 문구
-    "product_summary":     "gemini",    # 상품 요약
+    # 텍스트 생성 (Claude — Google API 키 유출로 Gemini 비활성)
+    "content_generation":  "claude",    # 상품 콘텐츠 일괄 생성
+    "copywriting":         "claude",    # 한국어 카피라이팅
+    "seo_metadata":        "claude",    # SEO 메타데이터 생성
+    "translation":         "claude",    # 중→한 번역
+    "detail_page_text":    "claude",    # 상세페이지 텍스트
+    "sns_content":         "claude",    # SNS/블로그 콘텐츠
+    "ad_copy":             "claude",    # 광고 문구
+    "product_summary":     "claude",    # 상품 요약
 
     # Imagen (이미지)
     "image_generation":    "imagen",    # 이미지 생성
