@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COO 전략 브리핑 - Fortimove</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#c9d1d9; --brand:#e94560; --blue:#58a6ff; --green:#3fb950; --yellow:#d29922; --red:#da3633; --purple:#8957e5; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); color:var(--text); font-family:'Noto Sans KR',sans-serif; }
+
+        .top-nav { background:#1a1a2e; padding:0 24px; height:48px; display:flex; align-items:center; gap:8px; }
+        .top-nav a { color:#8b949e; text-decoration:none; padding:6px 12px; border-radius:6px; font-size:13px; }
+        .top-nav a:hover { color:#fff; background:rgba(255,255,255,.08); }
+        .top-nav a.active { color:var(--blue); background:rgba(88,166,255,.1); }
+        .top-nav .brand { color:var(--brand); font-weight:900; font-size:1.1rem; margin-right:16px; }
+
+        .container { max-width:1400px; margin:0 auto; padding:20px 24px; }
+
+        /* 히어로 브리핑 */
+        .hero-brief { background:linear-gradient(135deg,#161b22,#1c2128); border:1px solid var(--border); border-radius:16px; padding:32px; margin-bottom:24px; position:relative; overflow:hidden; }
+        .hero-brief::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--brand),var(--purple),var(--blue)); }
+        .hero-brief .label { color:var(--brand); font-size:12px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; }
+        .hero-brief h2 { color:#fff; font-size:1.4rem; font-weight:900; margin-bottom:12px; line-height:1.4; }
+        .hero-brief p { color:#8b949e; font-size:14px; line-height:1.7; }
+        .hero-brief .action-list { margin-top:16px; }
+        .hero-brief .action-item { display:flex; align-items:start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+        .hero-brief .action-item:last-child { border:none; }
+        .priority-badge { padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
+        .p0 { background:var(--red); } .p1 { background:var(--yellow); } .p2 { background:var(--blue); }
+
+        /* 그리드 */
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+        .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:24px; }
+        @media(max-width:768px) { .grid-2,.grid-3 { grid-template-columns:1fr; } }
+
+        /* 카드 */
+        .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+        .card-title { font-size:12px; font-weight:700; color:#8b949e; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+        .card-title .icon { font-size:16px; }
+
+        /* 전략 인사이트 */
+        .insight-item { padding:12px 0; border-bottom:1px solid var(--border); }
+        .insight-item:last-child { border:none; }
+        .insight-item h4 { color:#fff; font-size:14px; font-weight:700; margin-bottom:4px; }
+        .insight-item p { color:#8b949e; font-size:13px; line-height:1.5; }
+        .insight-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; margin-right:4px; }
+        .tag-funding { background:rgba(63,185,80,.15); color:var(--green); }
+        .tag-regulation { background:rgba(210,153,34,.15); color:var(--yellow); }
+        .tag-platform { background:rgba(88,166,255,.15); color:var(--blue); }
+        .tag-competitor { background:rgba(137,87,229,.15); color:var(--purple); }
+
+        /* KPI */
+        .kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:24px; }
+        .kpi { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center; }
+        .kpi .num { font-size:1.8rem; font-weight:900; }
+        .kpi .label { font-size:11px; color:#8b949e; margin-top:2px; }
+
+        .loading { color:#8b949e; font-size:13px; padding:20px 0; }
+        .refresh-btn { background:var(--card); border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <a class="brand" href="/">FORTIMOVE GLOBAL</a>
+        <a href="/workbench">워크벤치</a>
+        <a href="/">홈</a>
+        <a href="/coo" class="active">COO 브리핑</a>
+        <a href="/review/list">리뷰</a>
+        <a href="/redesign/queue">상세페이지</a>
+        <a href="/agents">에이전트</a>
+                <a class="nav-link" href="/bi">BI &amp; FinOps</a>
+        <div style="flex:1;"></div>
+        <button class="refresh-btn" onclick="loadAll()" id="refreshBtn">새로고침</button>
+        <span style="font-size:11px;color:#8b949e;margin-left:8px;" id="lastUpdate"></span>
+    </nav>
+
+    <div class="container">
+        <!-- KPI -->
+        <div class="kpi-row">
+            <div class="kpi"><div class="num" style="color:#fff;" id="kTotal">-</div><div class="label">전체 상품</div></div>
+            <div class="kpi"><div class="num" style="color:var(--green);" id="kApproved">-</div><div class="label">승인</div></div>
+            <div class="kpi"><div class="num" style="color:var(--yellow);" id="kPending">-</div><div class="label">대기</div></div>
+            <div class="kpi"><div class="num" style="color:var(--blue);" id="kWinners">-</div><div class="label">위닝 후보</div></div>
+            <div class="kpi"><div class="num" style="color:var(--purple);" id="kPB">-</div><div class="label">PB 후보</div></div>
+        </div>
+
+        <!-- AI 전략 브리핑 (메인) -->
+        <div class="hero-brief">
+            <div class="label">COO 전략 브리핑</div>
+            <h2 id="briefHeadline">브리핑 생성 중...</h2>
+            <p id="briefSummary"></p>
+            <div id="briefNextFocus" style="color:var(--yellow);font-size:13px;margin-top:8px;"></div>
+            <div class="action-list" id="actionList">
+                <div class="loading">AI가 전체 시스템 데이터를 분석하고 있습니다...</div>
+            </div>
+        </div>
+
+        <!-- KPI 목표 & 달성률 ═══════════════════════════════ -->
+        <div class="card" style="margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+                <div class="card-title" style="margin:0;"><span class="icon">🎯</span> 월별 목표 & 달성률</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="month" id="kpiMonth" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;">
+                    <button onclick="loadKpiDashboard()" style="background:var(--blue);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;">조회</button>
+                </div>
+            </div>
+
+            <!-- 요약 -->
+            <div id="kpiSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+                    <div style="font-size:2rem;font-weight:900;color:#fff;" id="kpiAvgPct">-</div>
+                    <div style="font-size:11px;color:#8b949e;">평균 달성률</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+                    <div style="font-size:2rem;font-weight:900;color:var(--green);" id="kpiAchieved">-</div>
+                    <div style="font-size:11px;color:#8b949e;">달성 완료</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+                    <div style="font-size:2rem;font-weight:900;color:var(--blue);" id="kpiOnTrack">-</div>
+                    <div style="font-size:11px;color:#8b949e;">정상 진행</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+                    <div style="font-size:2rem;font-weight:900;color:var(--red);" id="kpiAtRisk">-</div>
+                    <div style="font-size:11px;color:#8b949e;">위험</div>
+                </div>
+            </div>
+
+            <!-- 카테고리별 KPI 카드 -->
+            <div id="kpiCategories"></div>
+        </div>
+
+        <!-- KPI 편집 모달 -->
+        <div id="kpiModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;">
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:480px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h3 id="modalTitle" style="color:#fff;font-size:18px;">KPI 편집</h3>
+                    <button onclick="closeKpiModal()" style="background:none;border:none;color:#8b949e;font-size:24px;cursor:pointer;">×</button>
+                </div>
+
+                <div id="modalContent">
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:11px;color:#8b949e;display:block;margin-bottom:4px;">목표값</label>
+                        <input type="number" id="modalTarget" style="width:100%;background:var(--bg);border:1px solid var(--border);color:#fff;padding:10px;border-radius:6px;font-size:14px;" step="any">
+                        <div style="font-size:11px;color:#8b949e;margin-top:4px;" id="modalUnit"></div>
+                    </div>
+
+                    <div style="margin-bottom:16px;" id="modalActualBox">
+                        <label style="font-size:11px;color:#8b949e;display:block;margin-bottom:4px;">실적값 (수동 입력)</label>
+                        <input type="number" id="modalActual" style="width:100%;background:var(--bg);border:1px solid var(--border);color:#fff;padding:10px;border-radius:6px;font-size:14px;" step="any">
+                        <div style="font-size:11px;color:#8b949e;margin-top:4px;" id="modalAutoHint"></div>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:11px;color:#8b949e;display:block;margin-bottom:4px;">메모 (선택)</label>
+                        <textarea id="modalNote" rows="2" style="width:100%;background:var(--bg);border:1px solid var(--border);color:#fff;padding:10px;border-radius:6px;font-size:12px;resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- 월별 추이 그래프 -->
+                    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
+                        <div style="font-size:11px;color:#8b949e;margin-bottom:8px;">최근 6개월 추이</div>
+                        <div id="modalChart" style="display:flex;align-items:flex-end;gap:4px;height:120px;"></div>
+                    </div>
+
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="saveKpi()" style="flex:1;background:var(--brand);border:none;color:#fff;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;">저장</button>
+                        <button onclick="closeKpiModal()" style="background:var(--border);border:none;color:var(--text);padding:10px 20px;border-radius:6px;cursor:pointer;font-size:13px;">취소</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .kpi-card {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 14px;
+                cursor: pointer;
+                transition: all .2s;
+                position: relative;
+                overflow: hidden;
+            }
+            .kpi-card:hover { border-color: var(--blue); transform: translateY(-1px); }
+            .kpi-card .kpi-icon { font-size: 1.4rem; }
+            .kpi-card .kpi-label { font-size: 12px; color: #8b949e; margin: 4px 0; }
+            .kpi-card .kpi-value { font-size: 1.1rem; font-weight: 800; color: #fff; }
+            .kpi-card .kpi-bar-bg { height: 6px; background: #30363d; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+            .kpi-card .kpi-bar-fill { height: 100%; transition: width .5s; }
+            .kpi-card .kpi-pct { font-size: 11px; font-weight: 700; margin-top: 4px; }
+            .kpi-card.no-target { opacity: .6; }
+            .kpi-card.auto::before {
+                content: "AUTO";
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                background: rgba(88,166,255,.15);
+                color: var(--blue);
+                font-size: 9px;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-weight: 700;
+            }
+            .kpi-category-title {
+                font-size: 11px;
+                font-weight: 700;
+                color: #8b949e;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin: 20px 0 10px;
+            }
+            .kpi-category-title:first-child { margin-top: 0; }
+            .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        </style>
+
+        <div class="grid-2">
+            <!-- 좌: Sentinel 인텔리전스 + 지원사업 -->
+            <div>
+                <!-- 비즈니스 인텔리전스 (Sentinel) -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-title"><span class="icon">🛰️</span> 비즈니스 인텔리전스 (Sentinel)</div>
+                    <div id="sentinelFeed"><div class="loading">Sentinel 데이터 로딩 중...</div></div>
+                </div>
+
+                <!-- 경쟁 동향 -->
+                <div class="card">
+                    <div class="card-title"><span class="icon">⚔️</span> 경쟁 동향</div>
+                    <div id="competitorFeed"><div class="loading">경쟁사 모니터링 중...</div></div>
+                </div>
+            </div>
+
+            <!-- 우: 운영 현황 -->
+            <div>
+                <!-- 마진 경고 -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-title"><span class="icon">💰</span> 마진 현황</div>
+                    <div id="marginAlerts"><div class="loading">로딩 중...</div></div>
+                </div>
+
+                <!-- 위닝 상품 -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-title"><span class="icon">🏆</span> 위닝 상품 후보</div>
+                    <div id="winnersList"><div class="loading">로딩 중...</div></div>
+                </div>
+
+                <!-- 운영 병목 -->
+                <div class="card">
+                    <div class="card-title"><span class="icon">⚙️</span> 운영 상태</div>
+                    <div id="bottleneckList"><div class="loading">로딩 중...</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API = '/api/coo';
+
+    async function loadAll() {
+        document.getElementById('refreshBtn').disabled = true;
+
+        // 빠른 데이터 먼저 (DB 쿼리만)
+        await Promise.all([loadSnapshot(), loadWinners(), loadAlerts(), loadBottlenecks()]);
+
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ko-KR');
+        document.getElementById('refreshBtn').disabled = false;
+
+        // 느린 것은 백그라운드
+        loadBriefing();
+        loadSentinel();
+        loadCompetitors();
+    }
+
+    async function loadSnapshot() {
+        try {
+            const d = (await (await fetch(`${API}/snapshot`)).json());
+            const q = d.queue || {};
+            document.getElementById('kTotal').textContent = q.total || 0;
+            document.getElementById('kApproved').textContent = q.approved || 0;
+            document.getElementById('kPending').textContent = q.pending || 0;
+        } catch(e) {}
+    }
+
+    async function loadBriefing() {
+        // 즉시 플레이스홀더 표시
+        document.getElementById('briefHeadline').textContent = '🔄 AI 분석 중... (최대 15초)';
+
+        try {
+            const res = await fetch(`${API}/briefing`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const full = await res.json();
+            const d = full.briefing || {};
+
+            if (typeof d === 'string') {
+                // LLM이 문자열로 반환한 경우
+                document.getElementById('briefHeadline').textContent = '브리핑 파싱 실패';
+                document.getElementById('briefSummary').textContent = d.substring(0, 300);
+                return;
+            }
+
+            document.getElementById('briefHeadline').textContent = d.headline || '데이터 분석 완료';
+            document.getElementById('briefSummary').textContent = d.status_summary || '';
+            if (d.next_focus) document.getElementById('briefNextFocus').textContent = '▸ 다음 집중: ' + d.next_focus;
+
+            const actions = d.action_items || [];
+            document.getElementById('actionList').innerHTML = actions.length ?
+                actions.map(a => `
+                    <div class="action-item">
+                        <span class="priority-badge ${(a.priority||'P2').toLowerCase()}">${a.priority||'P2'}</span>
+                        <div>
+                            <div style="color:#fff;font-size:13px;font-weight:700;">${a.action||''}</div>
+                            <div style="color:#8b949e;font-size:12px;">${a.reason||''}</div>
+                        </div>
+                    </div>
+                `).join('') : '<div style="color:var(--green);font-size:13px;">현재 긴급 액션 없음</div>';
+        } catch(e) {
+            console.error('Briefing error:', e);
+            document.getElementById('briefHeadline').textContent = '브리핑 생성 실패 — 새로고침 시도';
+            document.getElementById('briefSummary').textContent = e.message;
+        }
+    }
+
+    async function loadSentinel() {
+        const el = document.getElementById('sentinelFeed');
+        try {
+            // 트렌드 인텔리전스 + COO snapshot 병합
+            const [snapshot, trends] = await Promise.all([
+                fetch(`${API}/snapshot`).then(r => r.json()).catch(() => ({})),
+                fetch('/api/bi/trends/brief').then(r => r.json()).catch(() => ({})),
+            ]);
+
+            const volume = snapshot.daily_volume_7d || [];
+            const topAxes = trends.top_axes || [];
+            const topMargin = trends.top_high_margin || [];
+
+            let html = '';
+
+            if (trends.headline) {
+                html += `<div class="insight-item"><h4 style="color:#e94560;">📈 트렌드 인텔리전스</h4><p>${trends.headline}</p></div>`;
+            }
+
+            if (topAxes.length > 0) {
+                html += '<div class="insight-item"><h4>🎯 메가 트렌드 축</h4><p>';
+                html += topAxes.map(a => `<span class="insight-tag tag-platform">${a.priority||'P2'}</span> <strong style="color:#fff;">${a.name||''}</strong> (${a.growth||''}) — ${a.korean||''}`).join('<br>');
+                html += '</p></div>';
+            }
+
+            if (topMargin.length > 0) {
+                html += '<div class="insight-item"><h4>💰 고마진 기회</h4><p>';
+                html += topMargin.slice(0, 3).map(p => `${p.product||''} — ${p.margin_rate||0}% 마진 (월 ₩${(p.monthly_profit||0).toLocaleString()})`).join('<br>');
+                html += '</p></div>';
+            }
+
+            if (volume.length > 0) {
+                html += `<div class="insight-item"><h4>📊 최근 7일 분석 추이</h4><p>${volume.map(v => `${v.date?.slice(5)}: ${v.count}건`).join(' → ')}</p></div>`;
+            }
+
+            if (!html) {
+                html = '<div style="color:#8b949e;font-size:13px;padding:10px;">데이터 수집 대기 중 — 홈 또는 BI 대시보드 확인</div>';
+            }
+
+            el.innerHTML = html;
+        } catch(e) {
+            console.error('Sentinel load error:', e);
+            el.innerHTML = '<div style="color:#8b949e;font-size:13px;padding:10px;">인텔리전스 로드 실패 — <a href="/bi" style="color:#58a6ff;">BI 대시보드 열기</a></div>';
+        }
+    }
+
+    async function loadCompetitors() {
+        const el = document.getElementById('competitorFeed');
+        el.innerHTML = '<div class="loading">🔍 경쟁 셀러 분석 중... (첫 호출 30초)</div>';
+
+        try {
+            const d = await (await fetch(`${API}/competitors`)).json();
+
+            // 우리 상품이 없는 경우
+            if (d.our_product_count === 0) {
+                el.innerHTML = `<div class="insight-item" style="text-align:center;">
+                    <h4 style="color:#f39c12;">분석할 상품이 없습니다</h4>
+                    <p>워크벤치에서 상품을 승인(score 60+)하면 자동 경쟁 분석이 시작됩니다.</p>
+                </div>`;
+                return;
+            }
+
+            const analyses = d.analyses || [];
+            const summary = d.summary || {};
+
+            if (analyses.length === 0) {
+                el.innerHTML = '<div style="color:#8b949e;font-size:13px;">경쟁사 분석 실패 - 새로고침 시도</div>';
+                return;
+            }
+
+            // 시장 과열도 색상
+            const heatColors = {'낮음':'var(--green)','보통':'var(--yellow)','높음':'#ff9800','매우 높음':'var(--red)'};
+            const heatColor = heatColors[summary.overall_market_heat] || 'var(--yellow)';
+
+            let html = '';
+
+            // 종합 요약 카드
+            html += `<div class="insight-item" style="border-left:3px solid ${heatColor};">
+                <h4 style="color:${heatColor};">🔥 시장 과열도: ${summary.overall_market_heat || '-'}</h4>
+                <p style="color:#8b949e;">분석 상품 ${summary.analyzed_count || 0}건 / 전체 ${d.our_product_count}건</p>
+            </div>`;
+
+            // 공략 가능 빈틈
+            if (summary.top_competitive_gaps && summary.top_competitive_gaps.length > 0) {
+                html += `<div class="insight-item">
+                    <h4 style="color:var(--green);">🎯 공략 가능 빈틈</h4>
+                    ${summary.top_competitive_gaps.slice(0,3).map(g => `<p style="font-size:12px;color:#c9d1d9;">• ${g}</p>`).join('')}
+                </div>`;
+            }
+
+            // 상품별 경쟁 분석 TOP 3
+            analyses.slice(0, 3).forEach(a => {
+                const pr = a.price_range || {};
+                const position = pr.our_position || '?';
+                const posColor = position === '저가' ? 'var(--green)' : position === '고가' ? 'var(--red)' : 'var(--yellow)';
+                const links = a.marketplace_links || {};
+
+                html += `<div class="insight-item">
+                    <h4 style="color:#fff;">${(a.product_title || '').substring(0, 45)}</h4>
+                    <p style="font-size:11px;color:#8b949e;">
+                        <span style="color:${posColor};font-weight:700;">${position} 포지션</span> |
+                        시장가 ₩${(pr.min || 0).toLocaleString()}~₩${(pr.max || 0).toLocaleString()} |
+                        평균 ₩${(pr.avg || 0).toLocaleString()} |
+                        경쟁사 ${a.competitor_count_estimate || '?'}
+                    </p>
+                    ${a.competitive_gaps && a.competitive_gaps[0] ? `<p style="font-size:11px;color:var(--green);margin-top:4px;">💡 ${a.competitive_gaps[0].substring(0, 60)}</p>` : ''}
+                    <div style="margin-top:6px;font-size:10px;">
+                        ${links.naver_shopping ? `<a href="${links.naver_shopping}" target="_blank" style="color:#03c75a;margin-right:8px;">네이버쇼핑 →</a>` : ''}
+                        ${links.coupang ? `<a href="${links.coupang}" target="_blank" style="color:#ff6b6b;margin-right:8px;">쿠팡 →</a>` : ''}
+                        ${links['11st'] ? `<a href="${links['11st']}" target="_blank" style="color:#ff0038;">11번가 →</a>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            // 경고
+            if (summary.critical_warnings && summary.critical_warnings.length > 0) {
+                html += `<div class="insight-item" style="border-left:3px solid var(--red);">
+                    <h4 style="color:var(--red);">⚠️ 경고 사항</h4>
+                    ${summary.critical_warnings.map(w => `<p style="font-size:11px;color:#c9d1d9;">• ${w}</p>`).join('')}
+                </div>`;
+            }
+
+            el.innerHTML = html;
+        } catch(e) {
+            console.error('Competitor load error:', e);
+            el.innerHTML = `<div style="color:#8b949e;font-size:13px;padding:10px;">경쟁 분석 로드 실패: ${e.message}</div>`;
+        }
+    }
+
+    async function loadWinners() {
+        try {
+            const d = await (await fetch(`${API}/winners`)).json();
+            document.getElementById('kWinners').textContent = d.total_candidates || 0;
+            const el = document.getElementById('winnersList');
+            const winners = d.winners || [];
+
+            el.innerHTML = winners.length ?
+                winners.slice(0, 5).map(w => `
+                    <div class="insight-item">
+                        <h4>${(w.title||'').slice(0, 40)}</h4>
+                        <p>점수 ${w.score} | 마진 ${w.margin_rate||0}%</p>
+                    </div>
+                `).join('') : '<div style="color:#8b949e;font-size:13px;">위닝 후보 없음</div>';
+        } catch(e) {}
+    }
+
+    async function loadAlerts() {
+        try {
+            const d = await (await fetch(`${API}/margin-alerts`)).json();
+            const el = document.getElementById('marginAlerts');
+            const real = (d.alerts||[]).filter(a => a.level !== 'info');
+            const noData = (d.alerts||[]).filter(a => a.level === 'info');
+
+            let html = '';
+            if (real.length) {
+                html += real.slice(0, 3).map(a => `
+                    <div class="insight-item">
+                        <h4 style="color:var(--red);">${(a.title||'').slice(0, 30)}</h4>
+                        <p>${a.message}</p>
+                    </div>
+                `).join('');
+            }
+            if (noData.length) {
+                html += `<div class="insight-item"><p style="color:#8b949e;">${noData.length}건 마진 데이터 미수집 (소싱 검증 필요)</p></div>`;
+            }
+            if (!d.alerts?.length) html = '<div style="color:var(--green);font-size:13px;">마진 이상 없음</div>';
+            el.innerHTML = html;
+        } catch(e) {}
+    }
+
+    async function loadBottlenecks() {
+        try {
+            const d = await (await fetch(`${API}/bottlenecks`)).json();
+            const el = document.getElementById('bottleneckList');
+            const stalled = d.stalled_items || [];
+
+            if (stalled.length) {
+                el.innerHTML = stalled.slice(0, 3).map(s => `
+                    <div class="insight-item">
+                        <p>${(s.source_title||'').slice(0, 25)} — <strong style="color:var(--yellow);">${s.days_in_queue}일 체류</strong></p>
+                    </div>
+                `).join('');
+            } else {
+                el.innerHTML = '<div style="color:var(--green);font-size:13px;">병목 없음</div>';
+            }
+        } catch(e) {}
+    }
+
+    // PB 후보
+    fetch(`${API}/pb-candidates`).then(r=>r.json()).then(d => {
+        document.getElementById('kPB').textContent = d.count || 0;
+    }).catch(()=>{});
+
+    loadAll();
+    setInterval(loadAll, 300000);
+
+    // ═══════════════════════════════════════════════
+    // KPI 목표 & 달성률
+    // ═══════════════════════════════════════════════
+    const KPI_API = '/api/kpi';
+    let currentKpiData = null;
+    let editingKey = null;
+
+    function fmtNum(n, unit) {
+        if (n == null || n === 0) return '-';
+        if (unit === '원' || unit === 'KRW') return '₩' + Math.round(n).toLocaleString();
+        if (unit === '%') return n.toFixed(1) + '%';
+        if (unit === '점') return n.toFixed(1);
+        return Math.round(n).toLocaleString() + (unit || '');
+    }
+
+    function statusColor(status) {
+        return {
+            achieved: 'var(--green)',
+            on_track: 'var(--blue)',
+            behind: 'var(--yellow)',
+            risk: 'var(--red)',
+            no_target: '#6e7681',
+        }[status] || '#6e7681';
+    }
+
+    async function loadKpiDashboard() {
+        const month = document.getElementById('kpiMonth').value || new Date().toISOString().substring(0,7);
+        try {
+            const res = await fetch(`${KPI_API}/dashboard?month=${month}`);
+            const data = await res.json();
+            currentKpiData = data;
+
+            // 요약
+            const s = data.summary || {};
+            document.getElementById('kpiAvgPct').textContent = s.avg_pct ? s.avg_pct + '%' : '-';
+            document.getElementById('kpiAchieved').textContent = s.achieved || 0;
+            document.getElementById('kpiOnTrack').textContent = s.on_track || 0;
+            document.getElementById('kpiAtRisk').textContent = s.at_risk || 0;
+
+            // 카테고리별 카드
+            const container = document.getElementById('kpiCategories');
+            const cats = data.by_category || {};
+            let html = '';
+            const catOrder = ['재무', '운영', 'CS', '전략'];
+            for (const cat of catOrder) {
+                const items = cats[cat];
+                if (!items) continue;
+                html += `<div class="kpi-category-title">${cat}</div>`;
+                html += '<div class="kpi-grid">';
+                for (const item of items) {
+                    const color = statusColor(item.status);
+                    const barWidth = Math.min(100, item.achievement_pct || 0);
+                    const autoClass = item.auto ? 'auto' : '';
+                    const noTargetClass = item.target_value <= 0 ? 'no-target' : '';
+                    html += `
+                        <div class="kpi-card ${autoClass} ${noTargetClass}" onclick="openKpiModal('${item.key}')">
+                            <div class="kpi-icon">${item.icon}</div>
+                            <div class="kpi-label">${item.label}</div>
+                            <div class="kpi-value">
+                                ${fmtNum(item.actual_value, item.unit)}
+                                <span style="font-size:11px;color:#8b949e;font-weight:500;">/ ${fmtNum(item.target_value, item.unit)}</span>
+                            </div>
+                            <div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:${barWidth}%;background:${color};"></div></div>
+                            <div class="kpi-pct" style="color:${color};">
+                                ${item.target_value > 0 ? item.achievement_pct + '%' : '목표 미설정 (클릭하여 입력)'}
+                            </div>
+                        </div>`;
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        } catch (e) {
+            console.error('KPI 로드 실패:', e);
+        }
+    }
+
+    async function openKpiModal(key) {
+        if (!currentKpiData) return;
+        const item = currentKpiData.items.find(i => i.key === key);
+        if (!item) return;
+
+        editingKey = key;
+        document.getElementById('modalTitle').textContent = `${item.icon} ${item.label}`;
+        document.getElementById('modalTarget').value = item.target_value || '';
+        document.getElementById('modalUnit').textContent = `단위: ${item.unit}`;
+        document.getElementById('modalNote').value = item.target_note || '';
+
+        // 자동 집계 KPI는 실적 입력란 숨김
+        if (item.auto) {
+            document.getElementById('modalActualBox').style.display = 'none';
+            document.getElementById('modalAutoHint').textContent = '이 지표는 시스템에서 자동 집계됩니다';
+        } else {
+            document.getElementById('modalActualBox').style.display = 'block';
+            document.getElementById('modalActual').value = item.actual_value || '';
+            document.getElementById('modalAutoHint').textContent = '';
+        }
+
+        // 추이 그래프
+        try {
+            const res = await fetch(`${KPI_API}/history/${key}?months=6`);
+            const hist = await res.json();
+            const chart = document.getElementById('modalChart');
+            const maxVal = Math.max(...hist.history.map(h => Math.max(h.target, h.actual)), 1);
+            chart.innerHTML = hist.history.map(h => {
+                const tHeight = h.target > 0 ? (h.target / maxVal * 100) : 0;
+                const aHeight = h.actual > 0 ? (h.actual / maxVal * 100) : 0;
+                return `
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+                        <div style="flex:1;display:flex;gap:2px;align-items:flex-end;width:100%;">
+                            <div style="flex:1;background:rgba(139,148,158,.3);height:${tHeight}%;border-radius:2px 2px 0 0;" title="목표 ${fmtNum(h.target,item.unit)}"></div>
+                            <div style="flex:1;background:${statusColor(h.pct>=100?'achieved':h.pct>=80?'on_track':h.pct>=50?'behind':'risk')};height:${aHeight}%;border-radius:2px 2px 0 0;" title="실적 ${fmtNum(h.actual,item.unit)}"></div>
+                        </div>
+                        <div style="font-size:9px;color:#8b949e;">${h.month.substring(5)}</div>
+                    </div>
+                `;
+            }).join('');
+        } catch (e) {}
+
+        document.getElementById('kpiModal').style.display = 'flex';
+    }
+
+    function closeKpiModal() {
+        document.getElementById('kpiModal').style.display = 'none';
+        editingKey = null;
+    }
+
+    async function saveKpi() {
+        if (!editingKey) return;
+        const month = document.getElementById('kpiMonth').value || new Date().toISOString().substring(0,7);
+        const targetVal = parseFloat(document.getElementById('modalTarget').value);
+        const actualVal = parseFloat(document.getElementById('modalActual').value);
+        const note = document.getElementById('modalNote').value;
+
+        try {
+            if (!isNaN(targetVal)) {
+                await fetch(`${KPI_API}/target`, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({month, kpi_key: editingKey, target_value: targetVal, note})
+                });
+            }
+            const item = currentKpiData.items.find(i => i.key === editingKey);
+            if (item && !item.auto && !isNaN(actualVal)) {
+                await fetch(`${KPI_API}/actual`, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({month, kpi_key: editingKey, actual_value: actualVal, note})
+                });
+            }
+            closeKpiModal();
+            loadKpiDashboard();
+        } catch (e) {
+            alert('저장 실패: ' + e.message);
+        }
+    }
+
+    // 초기 로드
+    document.getElementById('kpiMonth').value = new Date().toISOString().substring(0,7);
+    loadKpiDashboard();
+    </script>
+</body>
+</html>

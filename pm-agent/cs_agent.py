@@ -46,7 +46,7 @@ class CSAgent(BaseAgent):
             self.client = None
             logger.warning("CSAgent initiated without ANTHROPIC_API_KEY - tests will fail if actual execution is triggered.")
             
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-sonnet-4-20250514"
 
     def _do_execute(self, input_model: CSInputSchema) -> Dict[str, Any]:
         """분리된 LLM 호출 로직을 실행. rule-based 확장을 위해 분리됨."""
@@ -62,7 +62,16 @@ class CSAgent(BaseAgent):
 1. 답변은 반드시 한국어로, 정중하고 신뢰할 수 있게 작성합니다.
 2. 정보가 부족하거나 입증되지 않은 부분(예: 주문상태 모름, 송장없음)에 대해 '다시 배송해드리겠습니다' 혹은 '환불해드렸습니다'와 같은 가짜 확답(Hallucination)을 절대로 하지 마십시오.
 3. 정보가 부족하면 보수적으로 작성하여 "담당 부서에 확인 중입니다" 혹은 "운송장 확인 부탁드립니다"로 종결합니다.
-4. cs_type은 다음 중 하나로 분류하세요: 배송지연, 오배송_누락, 재고없음, 환불요청, 주문확인, 일반문의.
+4. cs_type은 다음 중 하나로 정확히 분류하세요:
+   - 배송지연: 배송 지체/운송장 미발급/늦은 도착
+   - 오배송_누락: 다른 상품 도착/품목 일부 누락
+   - 파손: 상품 훼손/깨짐/찌그러짐/누출/변색 등 물리적 손상 (최우선 분류)
+   - 교환요청: 사이즈/색상/종류 변경 요청 (파손과 명확히 구분)
+   - 재고없음: 품절/재입고 문의
+   - 환불요청: 단순 변심/환불 요청
+   - 주문확인: 주문 내역/배송지 확인
+   - 일반문의: 상품 사용법/성분/기타
+   주의: "파손"과 "오배송_누락"을 혼동하지 마세요. 물리적 손상은 반드시 "파손"입니다.
 
 입력 정보:
 - 고객 메시지: {input_model.customer_message}

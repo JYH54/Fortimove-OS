@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortimove Workbench</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/workbench.css?v=20260406c">
+</head>
+<body>
+
+<!-- ── 로딩 오버레이 ───────────────────────────── -->
+<div class="loading-overlay" id="wbLoading">
+    <div class="wb-spinner"></div>
+    <div class="loading-text" id="wbLoadingText">처리 중...</div>
+</div>
+<div class="wb-toast" id="wbToast"></div>
+
+<!-- ── A3: 빠른 승인 모드 오버레이 ─────────────── -->
+<div class="quick-approval-overlay" id="quickApprovalOverlay">
+    <div class="qa-header">
+        <div>
+            <div class="qa-title">⚡ 빠른 승인 모드</div>
+            <div class="qa-sub" id="qaProgress">로딩 중...</div>
+        </div>
+        <div class="qa-keys-help">
+            <span class="qa-key">←</span> 거부
+            <span class="qa-key">→</span> 승인
+            <span class="qa-key">↑</span> 보류
+            <span class="qa-key">↓</span> 건너뛰기
+            <span class="qa-key">Enter</span> 상세
+            <span class="qa-key">Esc</span> 닫기
+        </div>
+        <button class="qa-close" onclick="WB.closeQuickApproval()">✕</button>
+    </div>
+    <div class="qa-stack" id="qaStack">
+        <div class="qa-empty">pending 리뷰를 불러오는 중...</div>
+    </div>
+    <div class="qa-footer" id="qaFooter"></div>
+</div>
+
+<!-- ── 상단 네비게이션 ─────────────────────────── -->
+<nav class="wb-nav">
+    <a class="brand" href="/">FORTIMOVE GLOBAL</a>
+    <a class="nav-link" href="/">홈</a>
+    <a class="nav-link" href="/coo">COO 브리핑</a>
+    <a class="nav-link" href="/review/list">리뷰</a>
+    <a class="nav-link" href="/redesign/queue">상세페이지</a>
+    <a class="nav-link" href="/agents">에이전트</a>
+                <a class="nav-link" href="/bi">BI &amp; FinOps</a>
+    <div class="nav-right">
+        <!-- 처리량 카운터는 Step 1 상단으로 이동 -->
+        <button class="quick-approval-btn" onclick="WB.openQuickApproval()" title="키보드로 빠르게 승인/거부 (단축키: Q)">⚡ 빠른 승인</button>
+        <div class="recent-dropdown">
+            <button class="recent-btn" id="recentBtn" onclick="toggleRecent()">최근 작업 ▼</button>
+            <div class="recent-panel" id="recentPanel">
+                <div class="rp-title">최근 작업</div>
+                <div id="recentList"><div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">로딩 중...</div></div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 레이아웃: Sidebar + Scrolling Content ─ -->
+<div class="wb-layout">
+
+    <!-- 좌: 프로그레스 타임라인 사이드바 (고정) -->
+    <div class="progress-sidebar" id="progressSidebar">
+        <div class="ps-title">워크플로우</div>
+        <div class="ps-timeline">
+            <div class="ps-step active" data-step="1" onclick="WB.scrollToStep(1)">
+                <div class="ps-dot"><span>1</span></div>
+                <div class="ps-info">
+                    <div class="ps-step-title">소싱 분석</div>
+                    <div class="ps-step-status" id="psStat1">진행중</div>
+                </div>
+            </div>
+            <div class="ps-connector"></div>
+            <div class="ps-step pending" data-step="2" onclick="WB.scrollToStep(2)">
+                <div class="ps-dot"><span>2</span></div>
+                <div class="ps-info">
+                    <div class="ps-step-title">리스크 검토</div>
+                    <div class="ps-step-status" id="psStat2">대기</div>
+                </div>
+            </div>
+            <div class="ps-connector"></div>
+            <div class="ps-step pending" data-step="3" onclick="WB.scrollToStep(3)">
+                <div class="ps-dot"><span>3</span></div>
+                <div class="ps-info">
+                    <div class="ps-step-title">가격/등록</div>
+                    <div class="ps-step-status" id="psStat3">대기</div>
+                </div>
+            </div>
+            <div class="ps-connector"></div>
+            <div class="ps-step pending" data-step="4" onclick="WB.scrollToStep(4)">
+                <div class="ps-dot"><span>4</span></div>
+                <div class="ps-info">
+                    <div class="ps-step-title">상세페이지</div>
+                    <div class="ps-step-status" id="psStat4">대기</div>
+                </div>
+            </div>
+            <div class="ps-connector"></div>
+            <div class="ps-step pending" data-step="5" onclick="WB.scrollToStep(5)">
+                <div class="ps-dot"><span>5</span></div>
+                <div class="ps-info">
+                    <div class="ps-step-title">최종 확인</div>
+                    <div class="ps-step-status" id="psStat5">대기</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 우: 메인 콘텐츠 — 모든 스텝이 수직으로 쌓임 -->
+    <div class="wb-main" id="wbMain">
+
+        <!-- ═══ STEP 1: 소싱 ═══ -->
+        <div class="step-card active" id="stepCard1" data-step="1">
+            <div class="step-header" onclick="WB.toggleStep(1)">
+                <div class="sh-left">
+                    <div class="sh-number">1</div>
+                    <div class="sh-title">소싱 분석</div>
+                    <div class="sh-badge badge-active" id="shBadge1">진행중</div>
+                </div>
+                <div class="sh-summary" id="shSummary1"></div>
+                <div class="sh-chevron">&#9660;</div>
+            </div>
+            <div class="step-content" id="stepContent1">
+
+                <!-- A4/A1: 오늘 처리량 카운터 — Step 1 상단 고정 -->
+                <div class="throughput-banner" id="throughputWidget" onclick="WB.toggleThroughputDetail()">
+                    <div class="tb-stats">
+                        <div class="tb-item">
+                            <div class="tb-num" id="twStarted">—</div>
+                            <div class="tb-label">오늘 분석</div>
+                            <div class="tb-delta" id="twStartedDelta"></div>
+                        </div>
+                        <div class="tb-sep"></div>
+                        <div class="tb-item">
+                            <div class="tb-num" id="twDecided">—</div>
+                            <div class="tb-label">오늘 승인</div>
+                            <div class="tb-delta" id="twDecidedDelta"></div>
+                        </div>
+                        <div class="tb-sep"></div>
+                        <div class="tb-item">
+                            <div class="tb-num pending" id="twPending">—</div>
+                            <div class="tb-label">대기</div>
+                            <div class="tb-delta" id="twWeekAvg" style="color:var(--text-muted);"></div>
+                        </div>
+                    </div>
+                    <div class="tb-right">
+                        <div class="tb-spark" id="twSpark"></div>
+                        <div class="tb-stages" id="twStages"></div>
+                    </div>
+                </div>
+
+                <div class="sourcing-hero">
+                    <h2>새 상품 분석</h2>
+                    <p>상품 URL을 붙여넣으면 리스크 분석, 마진 계산, SEO 최적화를 자동으로 수행합니다</p>
+
+                    <!-- A2: 단일/벌크 모드 토글 -->
+                    <div class="src-mode-toggle">
+                        <button class="src-mode-btn active" id="modeSingle" onclick="WB.setSourcingMode('single')">📝 단일</button>
+                        <button class="src-mode-btn" id="modeBulk" onclick="WB.setSourcingMode('bulk')">📋 벌크 (여러 URL)</button>
+                    </div>
+
+                    <!-- 단일 모드 -->
+                    <div class="url-input-group" id="srcModeSingle">
+                        <input type="text" id="srcUrl" placeholder="상품 URL 붙여넣기 (타오바오, 1688, 아마존, 라쿠텐, 아이허브 등)">
+                        <button class="btn-analyze" id="srcBtn" onclick="WB.runSourcing()">분석 시작</button>
+                    </div>
+
+                    <!-- A2: 벌크 모드 -->
+                    <div class="url-input-group bulk" id="srcModeBulk" style="display:none;flex-direction:column;gap:10px;align-items:stretch;">
+                        <textarea id="srcUrlBulk" rows="6" placeholder="URL을 한 줄에 하나씩 붙여넣기 (최대 10개)&#10;예시:&#10;https://www.amazon.com/dp/B08...&#10;https://www.iherb.com/pr/...&#10;https://detail.1688.com/offer/..."></textarea>
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                            <div style="font-size:12px;color:var(--text-muted);" id="bulkCount">0개 URL 감지</div>
+                            <button class="btn-analyze" id="srcBulkBtn" onclick="WB.runBulkSourcing()" style="flex:none;padding:10px 24px;">일괄 분석 시작</button>
+                        </div>
+                        <!-- 벌크 진행 상태 리스트 -->
+                        <div id="bulkProgressList" style="display:none;max-height:300px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:8px;"></div>
+                    </div>
+
+                    <div class="sourcing-fields">
+                        <div class="sf-group">
+                            <label>소싱 국가</label>
+                            <select id="srcCountry" onchange="WB.updateCurrency()">
+                                <option value="CN">중국</option>
+                                <option value="JP">일본</option>
+                                <option value="US" selected>미국</option>
+                                <option value="GB">영국</option>
+                            </select>
+                        </div>
+                        <div class="sf-group">
+                            <label>원가 (<span id="currencyLabel">USD</span>)</label>
+                            <input type="number" id="srcPrice" placeholder="0.00" step="0.01">
+                        </div>
+                        <div class="sf-group">
+                            <label>무게 (kg)</label>
+                            <input type="number" id="srcWeight" value="0.5" step="0.1">
+                        </div>
+                        <div class="sf-group">
+                            <label>상품명</label>
+                            <input type="text" id="srcTitle" placeholder="선택 입력">
+                        </div>
+                        <div class="sf-group">
+                            <label>카테고리</label>
+                            <select id="srcCategory">
+                                <option value="wellness">건강기능식품</option>
+                                <option value="supplement">영양제</option>
+                                <option value="beauty">뷰티</option>
+                                <option value="fitness">운동용품</option>
+                                <option value="food">식품</option>
+                                <option value="general" selected>일반</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="sourcing-fields" style="margin-top:12px;grid-template-columns:1fr;">
+                        <div class="sf-group">
+                            <label>분석 모드</label>
+                            <select id="srcWorkflow" style="max-width:400px;">
+                                <option value="full_product_registration" selected>전체 분석 (소싱+마진+콘텐츠+스코어링)</option>
+                                <option value="quick_sourcing_check">마진만 빠르게 (콘텐츠 미생성)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Daily Scout 트렌드 상품 + A5 사전 컷 필터 -->
+                    <div style="margin-top:24px;text-align:left;max-width:680px;margin-left:auto;margin-right:auto;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Daily Scout 트렌드 상품</div>
+                            <button onclick="WB.loadScoutProducts()" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:11px;">새로고침</button>
+                        </div>
+                        <!-- A5: 사전 컷 필터 -->
+                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;font-size:11px;">
+                            <label style="color:var(--text-muted);">최소 점수</label>
+                            <input type="range" id="scoutMinScore" min="0" max="100" value="50" oninput="document.getElementById('scoutMinScoreLabel').textContent=this.value;WB._scoutFilterDebounce()" style="width:120px;">
+                            <span id="scoutMinScoreLabel" style="color:var(--text);font-weight:700;min-width:24px;">50</span>
+                            <label style="color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer;">
+                                <input type="checkbox" id="scoutBlacklist" checked onchange="WB.loadScoutProducts()">
+                                블랙리스트 차단 (의약품·상표권 등)
+                            </label>
+                            <span id="scoutCutInfo" style="color:var(--yellow);font-weight:700;margin-left:auto;"></span>
+                        </div>
+                        <div id="scoutList" style="font-size:12px;color:var(--text-muted);">로딩 중...</div>
+                    </div>
+                </div>
+
+                <!-- 분석 진행 표시 -->
+                <div class="analysis-progress" id="analysisProgress">
+                    <div class="wb-spinner" style="margin:0 auto;"></div>
+                    <div class="progress-bar-wrap" style="margin-top:20px;">
+                        <div class="progress-bar-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-step-text" id="progressText">URL 크롤링 중...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ STEP 2: 분석 ═══ -->
+        <div class="step-card pending" id="stepCard2" data-step="2">
+            <div class="step-header" onclick="WB.toggleStep(2)">
+                <div class="sh-left">
+                    <div class="sh-number">2</div>
+                    <div class="sh-title">리스크 검토</div>
+                    <div class="sh-badge badge-pending" id="shBadge2">대기</div>
+                </div>
+                <div class="sh-summary" id="shSummary2"></div>
+                <div class="sh-chevron">&#9660;</div>
+            </div>
+            <div class="step-content" id="stepContent2">
+                <div class="analysis-grid">
+                    <!-- 점수 + 리스크 -->
+                    <div class="a-card">
+                        <div class="a-card-title">점수 & 판정</div>
+                        <div class="score-display">
+                            <div class="score-big" id="s2Score" style="color:var(--green);">-</div>
+                            <div class="score-bar">
+                                <div class="score-bar-bg"><div class="score-bar-fill" id="s2ScoreBar" style="width:0;background:var(--green);"></div></div>
+                                <div class="score-label" id="s2Decision">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="a-card">
+                        <div class="a-card-title">리스크 분석</div>
+                        <div id="s2Risks"><span class="risk-badge risk-low">분석 중...</span></div>
+                        <div style="margin-top:12px;">
+                            <div class="a-card-title" style="margin-bottom:4px;">추천 태그</div>
+                            <div id="s2Tags" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 마진 분석 -->
+                    <div class="a-card full-width">
+                        <div class="a-card-title">마진 분석</div>
+                        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+                            <div class="margin-row"><span class="m-label">소싱가</span><span class="m-value" id="s2SrcPrice">-</span></div>
+                            <span class="m-arrow">→</span>
+                            <div class="margin-row"><span class="m-label">추천 판매가</span><span class="m-value" id="s2SellPrice">-</span></div>
+                            <span class="m-arrow">→</span>
+                            <div class="margin-row"><span class="m-label">예상 마진율</span><span class="m-value" id="s2Margin" style="color:var(--green);">-</span></div>
+                        </div>
+                        <div id="s2CostDetail" style="display:none;margin-top:10px;font-size:11px;color:var(--text-muted);padding-top:8px;border-top:1px solid var(--border);"></div>
+                        <!-- B3: 이미지 품질 배지 -->
+                        <div id="s2ImageQualityBadge"></div>
+                    </div>
+
+                    <!-- 핵심 요약 (데이터 없으면 숨김) -->
+                    <div class="a-card full-width" id="s2SummaryCard">
+                        <div class="a-card-title">핵심 요약</div>
+                        <div id="s2Summary" style="font-size:14px;line-height:1.7;color:var(--text);">-</div>
+                    </div>
+
+                    <!-- 플랫폼 프리뷰 (데이터 없으면 숨김) -->
+                    <div class="a-card" id="s2NaverCard">
+                        <div class="a-card-title">네이버 스마트스토어</div>
+                        <div class="platform-preview">
+                            <div class="pp-label" style="color:var(--green);">상품명</div>
+                            <div class="pp-title" id="s2NaverTitle">-</div>
+                        </div>
+                    </div>
+                    <div class="a-card" id="s2CoupangCard">
+                        <div class="a-card-title">쿠팡</div>
+                        <div class="platform-preview">
+                            <div class="pp-label" style="color:var(--yellow);">상품명</div>
+                            <div class="pp-title" id="s2CoupangTitle">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 콘텐츠 미생성 안내 -->
+                <div id="s2ContentNotice" style="display:none;max-width:960px;margin:0 auto;padding:12px 20px;background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:10px;text-align:center;font-size:13px;color:var(--yellow);">
+                    콘텐츠가 아직 생성되지 않았습니다. 승인 후 Step 3에서 톤을 선택하고 콘텐츠를 생성하세요.
+                </div>
+
+                <!-- 액션 버튼 -->
+                <div class="action-bar">
+                    <button class="btn-action btn-reject" onclick="WB.reviewAction('reject')">거부</button>
+                    <button class="btn-action btn-hold" onclick="WB.reviewAction('hold')">보류</button>
+                    <button class="btn-action btn-approve" onclick="WB.reviewAction('approve')">승인하고 다음으로</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ STEP 3: 편집 ═══ -->
+        <div class="step-card pending" id="stepCard3" data-step="3">
+            <div class="step-header" onclick="WB.toggleStep(3)">
+                <div class="sh-left">
+                    <div class="sh-number">3</div>
+                    <div class="sh-title">가격/등록</div>
+                    <div class="sh-badge badge-pending" id="shBadge3">대기</div>
+                </div>
+                <div class="sh-summary" id="shSummary3"></div>
+                <div class="sh-chevron">&#9660;</div>
+            </div>
+            <div class="step-content" id="stepContent3">
+                <div class="edit-container">
+                    <div class="edit-tabs">
+                        <button class="edit-tab active" data-tab="basic" onclick="WB.switchTab('basic')">기본정보</button>
+                        <button class="edit-tab" data-tab="naver" onclick="WB.switchTab('naver')">네이버</button>
+                        <button class="edit-tab" data-tab="coupang" onclick="WB.switchTab('coupang')">쿠팡</button>
+                        <button class="edit-tab" data-tab="detail" onclick="WB.switchTab('detail')">상세페이지</button>
+                        <button class="edit-tab" data-tab="strategy" onclick="WB.switchTab('strategy')">판매전략</button>
+                    </div>
+
+                    <!-- 기본정보 탭 -->
+                    <div class="tab-content active" id="tab-basic">
+                        <!-- 콘텐츠 생성 컨트롤 -->
+                        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                                <div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">AI 콘텐츠 생성</div>
+                                    <div style="font-size:12px;color:var(--text-muted);">톤을 선택하고 생성 버튼을 누르면 네이버/쿠팡 제목, 설명, 태그, 판매전략이 한번에 생성됩니다</div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <select id="contentTone" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:13px;">
+                                        <option value="premium">프리미엄 (고급/브랜드)</option>
+                                        <option value="health">건강/웰니스 (기능성 강조)</option>
+                                        <option value="trendy">트렌디 (SNS/MZ세대)</option>
+                                        <option value="value">가성비 (실용/합리적)</option>
+                                        <option value="minimal">미니멀 (간결/깔끔)</option>
+                                    </select>
+                                    <button class="btn-next" id="generateContentBtn" onclick="WB.generateContent()" style="padding:8px 20px;font-size:13px;white-space:nowrap;">
+                                        콘텐츠 생성
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="contentGenStatus" style="display:none;margin-top:12px;padding:10px;border-radius:8px;font-size:12px;"></div>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label>상품명</label>
+                                <input type="text" id="e3Title">
+                            </div>
+                            <div class="field-group">
+                                <label>카테고리</label>
+                                <input type="text" id="e3Category" readonly>
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label>추천 판매가 (KRW)</label>
+                                <input type="number" id="e3Price">
+                            </div>
+                            <div class="field-group">
+                                <label>소싱가</label>
+                                <input type="text" id="e3SrcPrice" readonly>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label>검토 메모</label>
+                            <textarea id="e3Notes" rows="3" placeholder="추가 메모 입력..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 네이버 탭 -->
+                    <div class="tab-content" id="tab-naver">
+                        <div class="field-group">
+                            <label>네이버 상품명</label>
+                            <input type="text" id="e3NaverTitle">
+                        </div>
+                        <div class="field-group">
+                            <label>네이버 상세 설명</label>
+                            <textarea id="e3NaverDesc" rows="8"></textarea>
+                        </div>
+                        <div class="field-group">
+                            <label>검색 태그 (쉼표 구분)</label>
+                            <input type="text" id="e3NaverTags" placeholder="태그1, 태그2, 태그3">
+                        </div>
+                    </div>
+
+                    <!-- 쿠팡 탭 -->
+                    <div class="tab-content" id="tab-coupang">
+                        <div class="field-group">
+                            <label>쿠팡 상품명</label>
+                            <input type="text" id="e3CoupangTitle">
+                        </div>
+                        <div class="field-group">
+                            <label>쿠팡 상세 설명</label>
+                            <textarea id="e3CoupangDesc" rows="8"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 상세페이지 탭 -->
+                    <div class="tab-content" id="tab-detail">
+                        <!-- 이미지 업로드 영역 -->
+                        <div style="border:2px dashed var(--border);border-radius:12px;padding:24px;cursor:pointer;transition:border-color .2s;text-align:center;margin-bottom:20px;"
+                             id="detailDropZone"
+                             onclick="document.getElementById('detailFileInput').click()"
+                             ondragover="event.preventDefault();this.style.borderColor='var(--brand)'"
+                             ondragleave="this.style.borderColor='var(--border)'"
+                             ondrop="event.preventDefault();this.style.borderColor='var(--border)';WB.handleDetailFiles(event.dataTransfer.files)">
+                            <input type="file" id="detailFileInput" multiple accept="image/*" style="display:none" onchange="WB.handleDetailFiles(this.files)">
+                            <p style="color:var(--text);margin-bottom:4px;font-weight:600;">이미지 드래그 또는 클릭하여 업로드 (최대 50개)</p>
+                            <p style="color:var(--text-muted);font-size:11px;margin:0;">파일명으로 자동 분류됩니다 (예: main_01.jpg → 대표이미지, option_red.jpg → 옵션, detail_01.jpg → 상세페이지)</p>
+                        </div>
+
+                        <!-- 분류 결과 3컬럼 -->
+                        <div id="imageClassification" style="display:none;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+                                <!-- 대표이미지 -->
+                                <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                                    <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">대표이미지 <span id="mainCount" style="color:var(--text-muted);">0</span></div>
+                                    <div id="mainImages" style="display:flex;flex-wrap:wrap;gap:6px;min-height:60px;"></div>
+                                </div>
+                                <!-- 옵션이미지 -->
+                                <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                                    <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">옵션이미지 <span id="optionCount" style="color:var(--text-muted);">0</span></div>
+                                    <div id="optionImages" style="display:flex;flex-wrap:wrap;gap:6px;min-height:60px;"></div>
+                                </div>
+                                <!-- 상세페이지 -->
+                                <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                                    <div style="font-size:11px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">상세페이지 <span id="detailCount" style="color:var(--text-muted);">0</span></div>
+                                    <div id="detailImages" style="display:flex;flex-wrap:wrap;gap:6px;min-height:60px;"></div>
+                                </div>
+                            </div>
+
+                            <!-- 분류 수정 안내 -->
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;text-align:center;">
+                                이미지 클릭으로 분류를 변경할 수 있습니다 (대표 ↔ 옵션 ↔ 상세)
+                            </div>
+
+                            <!-- 리디자인 설정 + 시작 -->
+                            <div style="display:flex;align-items:center;justify-content:center;gap:16px;">
+                                <div class="field-group" style="margin:0;">
+                                    <label>무드톤</label>
+                                    <select id="e3Moodtone" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:13px;">
+                                        <option value="premium" selected>프리미엄</option>
+                                        <option value="minimal">미니멀</option>
+                                        <option value="trendy">트렌디</option>
+                                        <option value="value">가성비</option>
+                                    </select>
+                                </div>
+                                <button class="btn-next" onclick="WB.startRedesign()" style="margin-top:18px;">상세페이지 리디자인 시작</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 판매전략 탭 -->
+                    <div class="tab-content" id="tab-strategy">
+                        <div class="field-group">
+                            <label>포지셔닝</label>
+                            <textarea id="e3Positioning" rows="3"></textarea>
+                        </div>
+                        <div class="field-group">
+                            <label>USP (핵심 차별점)</label>
+                            <textarea id="e3USP" rows="3"></textarea>
+                        </div>
+                        <div class="field-group">
+                            <label>타겟 고객</label>
+                            <textarea id="e3Target" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 편집 푸터 -->
+                    <div class="edit-footer">
+                        <div class="autosave-indicator" id="autosaveStatus">자동 저장 대기</div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-secondary-wb" onclick="WB.saveDraft()">저장</button>
+                            <button class="btn-next" onclick="WB.startRedesign()">리디자인 시작 →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ STEP 4: 디자인 (에디터) ═══ -->
+        <div class="step-card pending" id="stepCard4" data-step="4">
+            <div class="step-header" onclick="WB.toggleStep(4)">
+                <div class="sh-left">
+                    <div class="sh-number">4</div>
+                    <div class="sh-title">상세페이지 디자인</div>
+                    <div class="sh-badge badge-pending" id="shBadge4">대기</div>
+                </div>
+                <div class="sh-summary" id="shSummary4"></div>
+                <div class="sh-chevron">&#9660;</div>
+            </div>
+            <div class="step-content step-content-editor" id="stepContent4">
+                <div class="editor-wrap">
+                    <!-- 좌: 썸네일 -->
+                    <div class="ed-sidebar-left" id="edThumbList"></div>
+
+                    <!-- 중앙 -->
+                    <div class="ed-main">
+                        <div class="ed-toolbar">
+                            <button class="ed-tb" onclick="FMEditor.undo()">↩ 실행취소</button>
+                            <button class="ed-tb" onclick="FMEditor.redo()">↪ 다시실행</button>
+                            <div class="ed-tb-sep"></div>
+                            <button class="ed-tb" id="edBtnSelect" onclick="FMEditor.setTool('select')">☐ 영역선택</button>
+                            <button class="ed-tb" id="edBtnBrush" onclick="FMEditor.setTool('brush')">🖌 AI지우개</button>
+                            <div class="ed-tb-sep"></div>
+                            <button class="ed-tb" onclick="FMEditor.addTextLayer()">T+ 텍스트추가</button>
+                            <div style="flex:1"></div>
+                            <span style="font-size:11px;color:#666;" id="edRedesignId"></span>
+                            <button class="ed-tb" onclick="FMEditor.saveFinal()">💾 저장</button>
+                            <button class="ed-tb" id="edDownloadZip" style="background:#198754;border-color:#198754;">📦 전체 ZIP</button>
+                            <button class="ed-tb" onclick="WB.activateStep(5)" style="background:var(--brand);border-color:var(--brand);color:#fff;">완료 →</button>
+                        </div>
+
+                        <div class="ed-canvas-wrap" id="edCanvasWrap">
+                            <div class="ed-container" id="edContainer">
+                                <canvas id="edBgCanvas" style="display:none;"></canvas>
+                                <img id="edBgImage" src="" alt="">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 우: 도구 -->
+                    <div class="ed-sidebar-right">
+                        <!-- 선택된 텍스트 편집 -->
+                        <div class="ed-panel" id="edTextEditPanel" style="display:none;">
+                            <div class="ed-panel-title">선택된 텍스트</div>
+                            <textarea class="ed-panel-input" id="edSelText" rows="3" placeholder="텍스트 내용"></textarea>
+                            <div class="ed-panel-row">
+                                <input type="number" class="ed-panel-input" id="edSelFontSize" value="24" min="8" max="200" placeholder="크기">
+                                <select class="ed-panel-input" id="edSelFontWeight">
+                                    <option value="bold">Bold</option>
+                                    <option value="normal">Regular</option>
+                                </select>
+                            </div>
+                            <div class="ed-panel-row">
+                                <input type="color" class="ed-panel-input" id="edSelColor" value="#ffffff" style="height:28px;padding:2px;">
+                                <input type="color" class="ed-panel-input" id="edSelBgColor" value="#000000" style="height:28px;padding:2px;">
+                                <label style="font-size:10px;display:flex;align-items:center;gap:2px;color:#ddd;"><input type="checkbox" id="edSelBgEnabled"> 배경</label>
+                            </div>
+                            <button class="ed-panel-btn" onclick="FMEditor.applyTextEdit()">적용</button>
+                            <button class="ed-panel-btn" onclick="FMEditor.deleteSelectedText()" style="color:#d63031;">삭제</button>
+                        </div>
+
+                        <!-- AI 편집 -->
+                        <div class="ed-panel">
+                            <div class="ed-panel-title">AI 편집</div>
+                            <button class="ed-panel-btn" onclick="FMEditor.aiTranslate()">🌐 이미지 일괄번역</button>
+                            <button class="ed-panel-btn" onclick="FMEditor.aiRemoveBg('white')">🖼 배경 제거 (흰색)</button>
+                            <button class="ed-panel-btn" onclick="FMEditor.aiRemoveBg('transparent')">🖼 배경 제거 (투명)</button>
+                            <button class="ed-panel-btn" onclick="FMEditor.aiRemoveText()">🔤 텍스트 제거</button>
+                            <button class="ed-panel-btn" onclick="FMEditor.aiEraseSelection()">✨ 선택영역 AI 지우기</button>
+                        </div>
+
+                        <!-- 기본 편집 -->
+                        <div class="ed-panel">
+                            <div class="ed-panel-title">기본 편집</div>
+                            <div class="ed-panel-row">
+                                <input type="number" class="ed-panel-input" id="edResizeW" placeholder="가로(px)">
+                                <input type="number" class="ed-panel-input" id="edResizeH" placeholder="세로(px)">
+                            </div>
+                            <button class="ed-panel-btn" onclick="FMEditor.resizeImage()">↔ 크기 변형</button>
+                            <button class="ed-panel-btn" onclick="FMEditor.cropSelection()">✂ 선택영역 자르기</button>
+                        </div>
+
+                        <!-- AI 지우개 -->
+                        <div class="ed-panel">
+                            <div class="ed-panel-title">AI 지우개 설정</div>
+                            <label style="font-size:10px;color:#aaa;">브러시 크기: <span id="edBrushSizeLabel">30</span>px</label>
+                            <input type="range" id="edBrushSize" min="5" max="100" value="30" style="width:100%;">
+                            <button class="ed-panel-btn" onclick="FMEditor.applyBrushErase()">✨ 브러시 영역 AI 지우기</button>
+                            <button class="ed-panel-btn" onclick="FMEditor.clearBrush()">🗑 브러시 초기화</button>
+                        </div>
+
+                        <!-- 상세페이지 -->
+                        <div class="ed-panel">
+                            <div class="ed-panel-title">상세페이지</div>
+                            <button class="ed-panel-btn" onclick="FMEditor.regenerateAll()" style="background:#6c3483;border-color:#6c3483;color:#fff;">🔄 전체 재생성</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ STEP 5: 완료 ═══ -->
+        <div class="step-card pending" id="stepCard5" data-step="5">
+            <div class="step-header" onclick="WB.toggleStep(5)">
+                <div class="sh-left">
+                    <div class="sh-number">5</div>
+                    <div class="sh-title">최종 확인</div>
+                    <div class="sh-badge badge-pending" id="shBadge5">대기</div>
+                </div>
+                <div class="sh-summary" id="shSummary5"></div>
+                <div class="sh-chevron">&#9660;</div>
+            </div>
+            <div class="step-content" id="stepContent5">
+                <div class="complete-hero">
+                    <div class="check-icon">✅</div>
+                    <h2>상품 등록 준비 완료</h2>
+                    <p id="s5ProductName">-</p>
+
+                    <div class="complete-summary">
+                        <div class="cs-item">
+                            <div class="cs-value" id="s5Score">-</div>
+                            <div class="cs-label">점수</div>
+                        </div>
+                        <div class="cs-item">
+                            <div class="cs-value" id="s5Margin">-</div>
+                            <div class="cs-label">마진율</div>
+                        </div>
+                        <div class="cs-item">
+                            <div class="cs-value" id="s5Images">-</div>
+                            <div class="cs-label">이미지</div>
+                        </div>
+                    </div>
+
+                    <div class="download-grid">
+                        <div class="dl-card" id="dlZip" onclick="WB.downloadZip()">
+                            <div class="dl-icon">📦</div>
+                            <div class="dl-title">ZIP 다운로드</div>
+                            <div class="dl-desc">상세페이지 이미지 전체</div>
+                        </div>
+                        <div class="dl-card" onclick="WB.activateStep(4)">
+                            <div class="dl-icon">🎨</div>
+                            <div class="dl-title">편집기로 돌아가기</div>
+                            <div class="dl-desc">이미지 추가 편집</div>
+                        </div>
+                    </div>
+
+                    <!-- 콘텐츠 소재 생성 (통과 상품) -->
+                    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:24px;text-align:left;">
+                        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">콘텐츠 소재 생성</div>
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">통과된 상품을 소재로 SNS/블로그/광고 콘텐츠를 생성합니다</p>
+
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                            <button class="btn-secondary-wb" onclick="WB.generateMaterial('sns')">SNS 콘텐츠</button>
+                            <button class="btn-secondary-wb" onclick="WB.generateMaterial('blog')">블로그 원고</button>
+                            <button class="btn-secondary-wb" onclick="WB.generateMaterial('ad')">광고 카피</button>
+                            <button class="btn-secondary-wb" onclick="WB.generateMaterial('review')">리뷰 요청 템플릿</button>
+                        </div>
+
+                        <div id="materialResult" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:12px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                <span style="font-size:12px;font-weight:700;color:var(--cyan);" id="materialTitle">-</span>
+                                <button onclick="navigator.clipboard.writeText(document.getElementById('materialText').textContent);WB.toast('복사됨')" style="background:var(--border);border:none;color:var(--text);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;">복사</button>
+                            </div>
+                            <pre id="materialText" style="font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.7;font-family:inherit;margin:0;max-height:300px;overflow-y:auto;"></pre>
+                        </div>
+                    </div>
+
+                    <button class="btn-new-product" onclick="WB.reset()" style="margin-top:24px;">새 상품 시작</button>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /wb-main -->
+</div><!-- /wb-layout -->
+
+<!-- ── 상태 바 ─────────────────────────────────── -->
+<div class="wb-status">
+    <span><span class="status-dot dot-ok"></span>시스템 정상</span>
+    <span id="statusProduct">-</span>
+    <span id="statusReviewId">-</span>
+    <span id="statusScore">-</span>
+    <span style="margin-left:auto;" id="statusTime"></span>
+</div>
+
+<script src="/static/js/editor_module.js"></script>
+<script src="/static/js/workbench.js?v=20260406g"></script>
+</body>
+</html>

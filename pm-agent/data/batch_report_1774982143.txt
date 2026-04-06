@@ -1,0 +1,72 @@
+
+================================================================================
+📊 일괄 처리 결과 요약
+================================================================================
+
+총 처리: 28개
+  🏆 자동 승인: 0개
+  ⏸️ 수동 검토: 0개
+  ❌ 처리 실패: 28개
+
+자동 승인률: 0.0%
+
+❌ 처리 실패 상품:
+--------------------------------------------------------------------------------
+  • Sports Research, D3 + K2, 식물성, 125mcg/100mcg, 베지 소프트젤 60정
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Physician's CHOICE Probiotics 60 Billion CFU - 10 Strains + Organic Prebiotics
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Sports Research, D3 + K2, Plant Based, 125 mcg/100 mcg, 60 Veggie Softgels
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Liquid I.V. Hydration Multiplier - Popsicle Firecracker | Electrolyte Powder Drink Mix | 1 Pack (16 Servings)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition, Micronized Creatine Powder, Unflavored, 1.32 lb (600 g)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • California Gold Nutrition, 스포츠, 순수 성분 크레아틴 일수화물, 무맛, 454g
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • California Gold Nutrition, Sport, Pure Creatine Monohydrate, Unflavored, 1 lb (454 g)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition, Gold Standard® 100% 유청 단백질, 더블 리치 초콜릿, 2.29kg
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition Gold Standard 100% Whey Protein Powder, Double Rich Chocolate 1.98 Pound
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • NOW Foods, L-카르니틴, 1,000mg, 100정
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Physician's CHOICE Probiotics 60 Billion CFU - 10 Strains + Organic Prebiotics (면역, 소화, 장 건강)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Life Extension, 글루타치온, 시스테인 & C, 캡슐 100정
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Pure Encapsulations Magnesium (Glycinate) - 마그네슘 글리시네이트 (스트레스 완화, 수면, 심장 건강)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Sports Research, D3 + K2, 식물성, 125mcg/100mcg, 베지 소프트젤 60정
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Liquid I.V. Hydration Multiplier - Popsicle Firecracker (전해질 파우더 음료 믹스, 16회분)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Sports Research, Alaskan 오메가3 피쉬 오일, 소프트젤 90정
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition, 미분화 크레아틴 파우더, 무향, 600g(1.32lb)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition Micronized Creatine Monohydrate Powder, Unflavored, 120 Servings, 600g
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • California Gold Nutrition, 스포츠, 순수 성분 크레아틴 일수화물, 무맛, 454g(1lb)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Pure Encapsulations Magnesium (Glycinate) - 스트레스 완화, 수면, 심장 건강 지원
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Sports Research, D3 + K2, 식물성, 125mcg/100mcg, 베지 소프트젤 60정
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • California Gold Nutrition, BCAA, AjiPure® 분지사슬아미노산, 2:1:1 비율, 500mg, 베지 캡슐 60정
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition Micronized Creatine Monohydrate Powder, Unflavored, 120 Servings
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • California Gold Nutrition, 스포츠, 순수 성분 크레아틴 일수화물, 무맛, 454g(1lb)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition, 미분화 크레아틴 파우더, 무향, 600g(1.32lb)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition, Gold Standard® 100% 유청 단백질, 더블 리치 초콜릿, 2.29kg(5.05lbs)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • California Gold Nutrition, 스포츠, 순수 크레아틴 일수화물, 무맛, 454g(1lb)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+  • Optimum Nutrition, Gold Standard® 100% 유청 단백질, 더블 리치 초콜릿, 2.29kg(5.05lbs)
+    오류: 'DailyScoutIntegration' object has no attribute 'process_single_product'
+
+================================================================================

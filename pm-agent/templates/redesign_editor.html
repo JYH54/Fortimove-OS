@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상세페이지 편집기 - Fortimove</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#1a1a1a; color:#e0e0e0; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100vh; }
+
+        /* 네비 */
+        .ed-top-nav { background:#1a1a2e; height:48px; display:flex; align-items:center; padding:0 20px; gap:8px; }
+        .ed-top-nav a { color:#8b949e; text-decoration:none; padding:6px 12px; border-radius:6px; font-size:13px; }
+        .ed-top-nav a:hover { color:#fff; background:rgba(255,255,255,.08); }
+        .ed-top-nav a.active { color:#58a6ff; background:rgba(88,166,255,.1); }
+        .ed-top-nav .brand { color:#e94560; font-weight:900; font-size:1.1rem; margin-right:16px; }
+
+        /* 레이아웃 */
+        .app { display:flex; height:calc(100vh - 48px); }
+        .sidebar-left { width:90px; background:#222; border-right:1px solid #333; overflow-y:auto; padding:6px; }
+        .main { flex:1; display:flex; flex-direction:column; }
+        .toolbar { height:44px; background:#2a2a2a; border-bottom:1px solid #333; display:flex; align-items:center; padding:0 12px; gap:6px; }
+        .canvas-wrap { flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; background:#111; position:relative; }
+        .sidebar-right { width:260px; background:#222; border-left:1px solid #333; overflow-y:auto; padding:10px; }
+
+        /* 툴바 */
+        .tb { background:#444; border:1px solid #555; color:#ddd; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; }
+        .tb:hover { background:#555; }
+        .tb.active { background:#4a90d9; border-color:#4a90d9; color:#fff; }
+        .tb-sep { width:1px; height:20px; background:#444; margin:0 2px; }
+
+        /* 썸네일 */
+        .thumb { width:76px; height:56px; margin-bottom:4px; cursor:grab; border:2px solid transparent; border-radius:4px; overflow:hidden; position:relative; }
+        .thumb img { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+        .thumb.active { border-color:#4a90d9; }
+        .thumb span { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.7); font-size:8px; text-align:center; color:#fff; pointer-events:none; }
+        .thumb .thumb-delete { position:absolute; top:1px; right:1px; width:16px; height:16px; background:#d63031; color:#fff; border:none; border-radius:50%; font-size:10px; line-height:16px; text-align:center; cursor:pointer; display:none; z-index:2; padding:0; }
+        .thumb:hover .thumb-delete { display:block; }
+        .thumb.drag-over { border-color:#e94560; background:rgba(233,69,96,.2); }
+        .thumb-add { width:76px; height:36px; margin-top:6px; background:#333; border:1px dashed #555; border-radius:4px; color:#888; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .thumb-add:hover { background:#444; color:#fff; border-color:#4a90d9; }
+        #imageUploadInput { display:none; }
+
+        /* 캔버스 영역 */
+        .editor-container { position:relative; display:inline-block; }
+        .editor-container img { display:block; max-width:90vw; max-height:85vh; }
+
+        /* 브러시/선택 오버레이 캔버스 */
+        #overlayCanvas {
+            position:absolute; top:0; left:0; pointer-events:none; z-index:5;
+        }
+        #overlayCanvas.active { pointer-events:auto; cursor:crosshair; }
+
+        /* 선택 영역 사각형 */
+        #selectionRect {
+            position:absolute; border:2px dashed #4a90d9; background:rgba(74,144,217,0.15);
+            display:none; z-index:6; pointer-events:none;
+        }
+
+        /* 텍스트 레이어 */
+        .text-layer {
+            position:absolute; cursor:move; padding:6px 10px;
+            border:2px solid transparent; border-radius:4px;
+            user-select:none; min-width:40px; min-height:20px;
+            transition: border-color 0.15s;
+        }
+        .text-layer:hover { border-color:rgba(74,144,217,0.6); }
+        .text-layer.selected { border-color:#4a90d9; }
+        .text-layer .resize-handle {
+            position:absolute; bottom:-4px; right:-4px; width:10px; height:10px;
+            background:#4a90d9; border-radius:2px; cursor:nwse-resize; display:none;
+        }
+        .text-layer.selected .resize-handle { display:block; }
+        .text-layer .delete-btn {
+            position:absolute; top:-10px; right:-10px; width:20px; height:20px;
+            background:#d63031; color:#fff; border:none; border-radius:50%;
+            font-size:12px; cursor:pointer; display:none; line-height:20px; text-align:center;
+        }
+        .text-layer.selected .delete-btn { display:block; }
+
+        /* 우측 패널 */
+        .panel { margin-bottom:14px; }
+        .panel-title { font-size:10px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+        .panel-btn { width:100%; background:#333; border:1px solid #444; color:#ddd; padding:7px; border-radius:4px; cursor:pointer; font-size:11px; margin-bottom:4px; text-align:left; }
+        .panel-btn:hover { background:#444; }
+        .panel-input { width:100%; background:#333; border:1px solid #444; color:#ddd; padding:5px 7px; border-radius:4px; font-size:11px; margin-bottom:4px; }
+        .panel-row { display:flex; gap:4px; margin-bottom:4px; }
+        .panel-row > * { flex:1; }
+
+        .loading-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.7); z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column; }
+        .loading-overlay.show { display:flex; }
+        .spinner { width:36px; height:36px; border:3px solid #333; border-top:3px solid #4a90d9; border-radius:50%; animation:spin .8s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .toast { position:fixed; bottom:16px; right:16px; background:#333; color:#fff; padding:8px 16px; border-radius:8px; z-index:9998; display:none; font-size:12px; }
+    </style>
+</head>
+<body>
+    <nav class="ed-top-nav">
+        <a class="brand" href="/">FORTIMOVE GLOBAL</a>
+        <a href="/workbench">워크벤치</a>
+        <a href="/">홈</a>
+        <a href="/coo">COO 브리핑</a>
+        <a href="/review/list">리뷰</a>
+        <a href="/redesign/queue" class="active">상세페이지</a>
+        <a href="/agents">에이전트</a>
+                <a class="nav-link" href="/bi">BI &amp; FinOps</a>
+    </nav>
+
+    <div class="loading-overlay" id="loading"><div class="spinner"></div><p style="margin-top:10px;color:#aaa;font-size:12px;" id="loadingText">처리 중...</p></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="app">
+        <!-- 좌: 썸네일 -->
+        <div class="sidebar-left" id="thumbList"></div>
+        <input type="file" id="imageUploadInput" accept="image/*" multiple>
+
+        <!-- 중앙 -->
+        <div class="main">
+            <div class="toolbar">
+                <a href="/redesign/queue" class="tb">← 대기열</a>
+                <div class="tb-sep"></div>
+                <button class="tb" onclick="undo()">↩ 실행취소</button>
+                <button class="tb" onclick="redo()">↪ 다시실행</button>
+                <div class="tb-sep"></div>
+                <button class="tb" id="btnSelect" onclick="setTool('select')">☐ 영역선택</button>
+                <button class="tb" id="btnBrush" onclick="setTool('brush')">🖌 AI지우개</button>
+                <div class="tb-sep"></div>
+                <button class="tb" onclick="addTextLayer()">T+ 텍스트추가</button>
+                <div style="flex:1"></div>
+                <span style="font-size:11px;color:#666;">{{ redesign_id }}</span>
+                <button class="tb" onclick="saveFinal()">💾 저장</button>
+                <a href="/api/redesign/{{ redesign_id }}/download" class="tb" style="background:#198754;border-color:#198754;">📦 전체 ZIP</a>
+            </div>
+
+            <div class="canvas-wrap" id="canvasWrap">
+                <div class="editor-container" id="editorContainer">
+                    <canvas id="bgCanvas" style="display:none;"></canvas>
+                    <img id="bgImage" src="" alt="">
+                    <canvas id="overlayCanvas"></canvas>
+                    <div id="selectionRect"></div>
+                    <!-- 텍스트 레이어들이 여기에 동적 추가 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 우: 도구 -->
+        <div class="sidebar-right">
+            <!-- 선택된 텍스트 편집 -->
+            <div class="panel" id="textEditPanel" style="display:none;">
+                <div class="panel-title">선택된 텍스트</div>
+                <textarea class="panel-input" id="selText" rows="3" placeholder="텍스트 내용"></textarea>
+                <div class="panel-row">
+                    <input type="number" class="panel-input" id="selFontSize" value="24" min="8" max="200" placeholder="크기">
+                    <select class="panel-input" id="selFontWeight">
+                        <option value="bold">Bold</option>
+                        <option value="normal">Regular</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <input type="color" class="panel-input" id="selColor" value="#ffffff" style="height:28px;padding:2px;">
+                    <input type="color" class="panel-input" id="selBgColor" value="#000000" style="height:28px;padding:2px;">
+                    <label style="font-size:10px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="selBgEnabled"> 배경</label>
+                </div>
+                <button class="panel-btn" onclick="applyTextEdit()">✅ 적용</button>
+                <button class="panel-btn" onclick="deleteSelectedText()" style="color:#d63031;">🗑 삭제</button>
+            </div>
+
+            <!-- AI 편집 -->
+            <div class="panel">
+                <div class="panel-title">AI 편집</div>
+                <button class="panel-btn" onclick="aiTranslate()">🌐 이미지 일괄번역</button>
+                <button class="panel-btn" onclick="aiRemoveBg('white')">🖼 배경 제거 (흰색)</button>
+                <button class="panel-btn" onclick="aiRemoveBg('transparent')">🖼 배경 제거 (투명)</button>
+                <button class="panel-btn" onclick="aiRemoveText()">🔤 텍스트 제거</button>
+                <button class="panel-btn" onclick="aiEraseSelection()">✨ 선택영역 AI 지우기</button>
+            </div>
+
+            <!-- 기본 편집 -->
+            <div class="panel">
+                <div class="panel-title">기본 편집</div>
+                <div class="panel-row">
+                    <input type="number" class="panel-input" id="resizeW" placeholder="가로(px)">
+                    <input type="number" class="panel-input" id="resizeH" placeholder="세로(px)">
+                </div>
+                <button class="panel-btn" onclick="resizeImage()">↔ 크기 변형</button>
+                <button class="panel-btn" onclick="cropSelection()">✂ 선택영역 자르기</button>
+            </div>
+
+            <!-- AI 지우개 -->
+            <div class="panel">
+                <div class="panel-title">AI 지우개 설정</div>
+                <label style="font-size:10px;">브러시 크기: <span id="brushSizeLabel">30</span>px</label>
+                <input type="range" id="brushSize" min="5" max="100" value="30" style="width:100%;">
+                <button class="panel-btn" onclick="applyBrushErase()">✨ 브러시 영역 AI 지우기</button>
+                <button class="panel-btn" onclick="clearBrush()">🗑 브러시 초기화</button>
+            </div>
+
+            <!-- 상세페이지 -->
+            <div class="panel">
+                <div class="panel-title">상세페이지</div>
+                <button class="panel-btn" onclick="regenerateAll()" style="background:#6c3483;border-color:#6c3483;color:#fff;">🔄 전체 재생성</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const REDESIGN_ID = '{{ redesign_id }}';
+    const API = `/api/redesign/${REDESIGN_ID}`;
+    const EDITOR_API = '/api/editor';
+    const SECTION_NAMES = { hero:'Hero', benefits:'혜택', problem_solution:'문제해결', faq:'FAQ', spec:'스펙' };
+
+    let images = [];
+    let currentIdx = 0;
+    let textLayers = [];  // [{id, text, x, y, fontSize, fontWeight, color, bgColor, bgEnabled, el}]
+    let selectedLayer = null;
+    let history = [], historyIdx = -1;
+    let currentTool = null;
+    let brushStrokes = [];
+    let isDragging = false, dragOffset = {x:0, y:0};
+    let isSelecting = false, selStart = null, selRect = null;
+    let layerIdCounter = 0;
+
+    // ── 초기화 ───────────────────────────────────
+    window.addEventListener('load', () => {
+        loadRedesign();
+        initSelectionTool();
+        initBrushTool();
+    });
+
+    document.getElementById('brushSize').addEventListener('input', e => {
+        document.getElementById('brushSizeLabel').textContent = e.target.value;
+    });
+
+    // ── 데이터 로드 ──────────────────────────────
+    async function loadRedesign() {
+        const res = await fetch(API);
+        const data = await res.json();
+        if (data.status === 'processing') {
+            showLoading('처리 중...');
+            setTimeout(loadRedesign, 3000);
+            return;
+        }
+        hideLoading();
+        if (data.status !== 'completed') return;
+
+        const rRes = await fetch(`${API}/result`);
+        const rData = await rRes.json();
+        images = rData.images || [];
+        renderThumbs();
+        if (images.length) loadImage(0);
+    }
+
+    function renderThumbs() {
+        const html = images.map((img, i) => `
+            <div class="thumb ${i===currentIdx?'active':''}"
+                 onclick="loadImage(${i})"
+                 draggable="true"
+                 data-idx="${i}"
+                 ondragstart="onThumbDragStart(event,${i})"
+                 ondragover="onThumbDragOver(event)"
+                 ondragenter="event.target.closest('.thumb')?.classList.add('drag-over')"
+                 ondragleave="event.target.closest('.thumb')?.classList.remove('drag-over')"
+                 ondrop="onThumbDrop(event,${i})">
+                <button class="thumb-delete" onclick="event.stopPropagation();deleteImage(${i})" title="삭제">×</button>
+                <img src="${API}/image/${img.filename}?t=${Date.now()}">
+                <span>${SECTION_NAMES[img.section_type]||img.section_type}</span>
+            </div>
+        `).join('');
+        document.getElementById('thumbList').innerHTML = html + `
+            <div class="thumb-add" onclick="document.getElementById('imageUploadInput').click()" title="이미지 추가">+</div>
+        `;
+    }
+
+    // ── 이미지 삭제 ──────────────────────────────
+    async function deleteImage(idx) {
+        const img = images[idx];
+        if (!img || !confirm(`"${SECTION_NAMES[img.section_type]||img.section_type}" 이미지를 삭제하시겠습니까?`)) return;
+        try {
+            const res = await fetch(`${API}/images/${img.filename}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(await res.text());
+            images.splice(idx, 1);
+            if (currentIdx >= images.length) currentIdx = Math.max(0, images.length - 1);
+            renderThumbs();
+            if (images.length) loadImage(currentIdx);
+            toast('이미지 삭제됨');
+        } catch (e) { toast('삭제 오류: ' + e.message); }
+    }
+
+    // ── 이미지 추가 ──────────────────────────────
+    document.getElementById('imageUploadInput').addEventListener('change', async function() {
+        const files = this.files;
+        if (!files.length) return;
+        showLoading('이미지 업로드 중...');
+        for (const file of files) {
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('section_type', 'custom');
+                const res = await fetch(`${API}/images/upload`, { method: 'POST', body: fd });
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+                images.push(data.image);
+            } catch (e) { toast('업로드 오류: ' + e.message); }
+        }
+        this.value = '';
+        renderThumbs();
+        loadImage(images.length - 1);
+        hideLoading();
+        toast('이미지 추가됨');
+    });
+
+    // ── 드래그앤드롭 순서 변경 ───────────────────
+    let dragSrcIdx = null;
+
+    function onThumbDragStart(e, idx) {
+        dragSrcIdx = idx;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', idx);
+    }
+
+    function onThumbDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    async function onThumbDrop(e, targetIdx) {
+        e.preventDefault();
+        e.target.closest('.thumb')?.classList.remove('drag-over');
+        if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+
+        // 로컬 순서 변경
+        const [moved] = images.splice(dragSrcIdx, 1);
+        images.splice(targetIdx, 0, moved);
+
+        // 현재 보고 있던 이미지 추적
+        if (currentIdx === dragSrcIdx) currentIdx = targetIdx;
+        else if (dragSrcIdx < currentIdx && targetIdx >= currentIdx) currentIdx--;
+        else if (dragSrcIdx > currentIdx && targetIdx <= currentIdx) currentIdx++;
+
+        renderThumbs();
+        dragSrcIdx = null;
+
+        // 서버에 순서 저장
+        try {
+            const order = JSON.stringify(images.map(img => img.filename));
+            const fd = new FormData();
+            fd.append('order', order);
+            await fetch(`${API}/images/reorder`, { method: 'POST', body: fd });
+        } catch (e) { toast('순서 저장 오류: ' + e.message); }
+    }
+
+    function loadImage(idx) {
+        currentIdx = idx;
+        renderThumbs();
+        clearAllTextLayers();
+        selectedLayer = null;
+        updateTextEditPanel();
+        brushStrokes = [];
+
+        const bgImg = document.getElementById('bgImage');
+        bgImg.onload = () => { saveHistory(); };
+        bgImg.src = `${API}/image/${images[idx].filename}?t=${Date.now()}`;
+    }
+
+    // ── 텍스트 레이어 시스템 ─────────────────────
+    function addTextLayer(text, x, y, opts) {
+        const id = `tl-${++layerIdCounter}`;
+        const layer = {
+            id, text: text || '텍스트를 입력하세요',
+            x: x || 50, y: y || 50,
+            fontSize: opts?.fontSize || 24,
+            fontWeight: opts?.fontWeight || 'bold',
+            color: opts?.color || '#ffffff',
+            bgColor: opts?.bgColor || '#000000',
+            bgEnabled: opts?.bgEnabled || false,
+        };
+
+        const el = document.createElement('div');
+        el.className = 'text-layer';
+        el.id = id;
+        el.innerHTML = `
+            <span class="text-content">${layer.text}</span>
+            <div class="resize-handle"></div>
+            <div class="delete-btn" onclick="event.stopPropagation();deleteLayer('${id}')">×</div>
+        `;
+        applyLayerStyle(el, layer);
+
+        // 이벤트
+        el.addEventListener('mousedown', e => startDrag(e, id));
+        el.addEventListener('dblclick', e => { e.stopPropagation(); editLayerInline(id); });
+        el.addEventListener('click', e => { e.stopPropagation(); selectLayer(id); });
+
+        document.getElementById('editorContainer').appendChild(el);
+        layer.el = el;
+        textLayers.push(layer);
+        selectLayer(id);
+        return id;
+    }
+
+    function applyLayerStyle(el, layer) {
+        el.style.left = layer.x + 'px';
+        el.style.top = layer.y + 'px';
+        el.style.fontSize = layer.fontSize + 'px';
+        el.style.fontWeight = layer.fontWeight;
+        el.style.color = layer.color;
+        el.style.fontFamily = "'Nanum Gothic', sans-serif";
+        el.style.lineHeight = '1.4';
+        el.style.whiteSpace = 'pre-wrap';
+
+        if (layer.bgEnabled) {
+            el.style.background = layer.bgColor + 'cc';
+            el.style.borderRadius = '6px';
+            el.style.padding = '8px 12px';
+        } else {
+            el.style.background = 'transparent';
+        }
+        el.querySelector('.text-content').textContent = layer.text;
+    }
+
+    function selectLayer(id) {
+        textLayers.forEach(l => l.el.classList.remove('selected'));
+        selectedLayer = textLayers.find(l => l.id === id) || null;
+        if (selectedLayer) {
+            selectedLayer.el.classList.add('selected');
+        }
+        updateTextEditPanel();
+    }
+
+    function updateTextEditPanel() {
+        const panel = document.getElementById('textEditPanel');
+        if (!selectedLayer) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        document.getElementById('selText').value = selectedLayer.text;
+        document.getElementById('selFontSize').value = selectedLayer.fontSize;
+        document.getElementById('selFontWeight').value = selectedLayer.fontWeight;
+        document.getElementById('selColor').value = selectedLayer.color;
+        document.getElementById('selBgColor').value = selectedLayer.bgColor;
+        document.getElementById('selBgEnabled').checked = selectedLayer.bgEnabled;
+    }
+
+    function applyTextEdit() {
+        if (!selectedLayer) return;
+        selectedLayer.text = document.getElementById('selText').value;
+        selectedLayer.fontSize = parseInt(document.getElementById('selFontSize').value);
+        selectedLayer.fontWeight = document.getElementById('selFontWeight').value;
+        selectedLayer.color = document.getElementById('selColor').value;
+        selectedLayer.bgColor = document.getElementById('selBgColor').value;
+        selectedLayer.bgEnabled = document.getElementById('selBgEnabled').checked;
+        applyLayerStyle(selectedLayer.el, selectedLayer);
+        saveHistory();
+        toast('텍스트 적용됨');
+    }
+
+    function editLayerInline(id) {
+        const layer = textLayers.find(l => l.id === id);
+        if (!layer) return;
+        const newText = prompt('텍스트 수정:', layer.text);
+        if (newText !== null) {
+            layer.text = newText;
+            applyLayerStyle(layer.el, layer);
+            updateTextEditPanel();
+            saveHistory();
+        }
+    }
+
+    function deleteLayer(id) {
+        const idx = textLayers.findIndex(l => l.id === id);
+        if (idx === -1) return;
+        textLayers[idx].el.remove();
+        textLayers.splice(idx, 1);
+        if (selectedLayer?.id === id) { selectedLayer = null; updateTextEditPanel(); }
+        saveHistory();
+        toast('텍스트 삭제됨');
+    }
+
+    function deleteSelectedText() {
+        if (selectedLayer) deleteLayer(selectedLayer.id);
+    }
+
+    function clearAllTextLayers() {
+        textLayers.forEach(l => l.el.remove());
+        textLayers = [];
+    }
+
+    // ── 드래그 (텍스트 이동) ─────────────────────
+    function startDrag(e, id) {
+        if (e.target.classList.contains('delete-btn') || e.target.classList.contains('resize-handle')) return;
+        selectLayer(id);
+        const layer = textLayers.find(l => l.id === id);
+        if (!layer) return;
+
+        isDragging = true;
+        const rect = layer.el.getBoundingClientRect();
+        dragOffset.x = e.clientX - rect.left;
+        dragOffset.y = e.clientY - rect.top;
+
+        const onMove = ev => {
+            if (!isDragging) return;
+            const container = document.getElementById('editorContainer').getBoundingClientRect();
+            layer.x = ev.clientX - container.left - dragOffset.x;
+            layer.y = ev.clientY - container.top - dragOffset.y;
+            layer.el.style.left = layer.x + 'px';
+            layer.el.style.top = layer.y + 'px';
+        };
+        const onUp = () => {
+            isDragging = false;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            saveHistory();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        e.preventDefault();
+    }
+
+    // ── 배경 클릭 → 선택 해제 ────────────────────
+    document.getElementById('editorContainer').addEventListener('click', e => {
+        if (e.target === document.getElementById('bgImage') || e.target === document.getElementById('editorContainer')) {
+            textLayers.forEach(l => l.el.classList.remove('selected'));
+            selectedLayer = null;
+            updateTextEditPanel();
+        }
+    });
+
+    // ── 도구 ─────────────────────────────────────
+    function setTool(tool) {
+        currentTool = currentTool === tool ? null : tool;
+        document.getElementById('btnSelect').classList.toggle('active', currentTool === 'select');
+        document.getElementById('btnBrush').classList.toggle('active', currentTool === 'brush');
+        // 브러시 모드에서만 오버레이 활성화
+        const overlay = document.getElementById('overlayCanvas');
+        if (currentTool === 'brush') {
+            syncOverlaySize();
+            overlay.classList.add('active');
+        } else {
+            overlay.classList.remove('active');
+        }
+        // 선택 모드 해제 시 사각형 숨기기
+        if (currentTool !== 'select') clearSelection();
+    }
+
+    // ── 히스토리 ─────────────────────────────────
+    function saveHistory() {
+        // 간소화: 현재 상태 텍스트만 저장
+        historyIdx++;
+        history = history.slice(0, historyIdx);
+        history.push(JSON.stringify(textLayers.map(l => ({
+            id:l.id, text:l.text, x:l.x, y:l.y,
+            fontSize:l.fontSize, fontWeight:l.fontWeight,
+            color:l.color, bgColor:l.bgColor, bgEnabled:l.bgEnabled
+        }))));
+    }
+    function undo() { if (historyIdx > 0) { historyIdx--; restoreHistory(); } }
+    function redo() { if (historyIdx < history.length-1) { historyIdx++; restoreHistory(); } }
+    function restoreHistory() {
+        clearAllTextLayers();
+        const layers = JSON.parse(history[historyIdx]);
+        layers.forEach(l => addTextLayer(l.text, l.x, l.y, l));
+    }
+
+    // ── AI 편집 (배경 이미지에 적용) ─────────────
+    async function callImageAPI(endpoint, formData) {
+        showLoading();
+        try {
+            // 현재 배경 이미지를 blob으로 변환
+            const imgEl = document.getElementById('bgImage');
+            const canvas = document.createElement('canvas');
+            canvas.width = imgEl.naturalWidth;
+            canvas.height = imgEl.naturalHeight;
+            canvas.getContext('2d').drawImage(imgEl, 0, 0);
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+
+            if (!formData) formData = new FormData();
+            formData.set('file', blob, 'image.png');
+
+            const res = await fetch(`${EDITOR_API}/${endpoint}`, { method:'POST', body:formData });
+            if (!res.ok) throw new Error(await res.text());
+            const resultBlob = await res.blob();
+            document.getElementById('bgImage').src = URL.createObjectURL(resultBlob);
+            saveHistory();
+            toast('완료');
+        } catch(e) { toast('오류: ' + e.message); }
+        hideLoading();
+    }
+
+    function aiTranslate() { callImageAPI('translate', (() => { const f=new FormData(); f.append('moodtone','premium'); return f; })()); }
+    function aiRemoveBg(c) { const f=new FormData(); f.append('bg_color',c); callImageAPI('remove-bg', f); }
+    function aiRemoveText() { callImageAPI('remove-text'); }
+    // ── 선택 영역 AI 지우기 ────────────────────
+    function aiEraseSelection() {
+        if (!selRect || !selRect.w || !selRect.h) {
+            toast('영역선택 도구로 먼저 영역을 드래그하세요');
+            return;
+        }
+        const f = new FormData();
+        f.append('x', Math.round(selRect.x));
+        f.append('y', Math.round(selRect.y));
+        f.append('w', Math.round(selRect.w));
+        f.append('h', Math.round(selRect.h));
+        callImageAPI('area-erase', f).then(() => {
+            clearSelection();
+        });
+    }
+
+    // ── 영역 선택 (select 도구) ──────────────────
+    let selRect = null;  // {x, y, w, h} in natural image coords
+
+    function initSelectionTool() {
+        const container = document.getElementById('editorContainer');
+        const rectEl = document.getElementById('selectionRect');
+        let startX, startY, isSelectDragging = false;
+
+        container.addEventListener('mousedown', e => {
+            if (currentTool !== 'select') return;
+            if (e.target.closest('.text-layer')) return;
+            isSelectDragging = true;
+            const cr = container.getBoundingClientRect();
+            startX = e.clientX - cr.left;
+            startY = e.clientY - cr.top;
+            rectEl.style.left = startX + 'px';
+            rectEl.style.top = startY + 'px';
+            rectEl.style.width = '0';
+            rectEl.style.height = '0';
+            rectEl.style.display = 'block';
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', e => {
+            if (!isSelectDragging) return;
+            const cr = container.getBoundingClientRect();
+            const curX = e.clientX - cr.left;
+            const curY = e.clientY - cr.top;
+            const x = Math.min(startX, curX), y = Math.min(startY, curY);
+            const w = Math.abs(curX - startX), h = Math.abs(curY - startY);
+            rectEl.style.left = x + 'px';
+            rectEl.style.top = y + 'px';
+            rectEl.style.width = w + 'px';
+            rectEl.style.height = h + 'px';
+        });
+        document.addEventListener('mouseup', e => {
+            if (!isSelectDragging) return;
+            isSelectDragging = false;
+            const cr = container.getBoundingClientRect();
+            const curX = e.clientX - cr.left;
+            const curY = e.clientY - cr.top;
+            const imgEl = document.getElementById('bgImage');
+            const scaleX = imgEl.naturalWidth / imgEl.clientWidth;
+            const scaleY = imgEl.naturalHeight / imgEl.clientHeight;
+            const x = Math.min(startX, curX), y = Math.min(startY, curY);
+            const w = Math.abs(curX - startX), h = Math.abs(curY - startY);
+            if (w > 5 && h > 5) {
+                selRect = { x: x * scaleX, y: y * scaleY, w: w * scaleX, h: h * scaleY };
+            } else {
+                clearSelection();
+            }
+        });
+    }
+
+    function clearSelection() {
+        selRect = null;
+        document.getElementById('selectionRect').style.display = 'none';
+    }
+
+    // ── 브러시 도구 (마스크 생성) ─────────────────
+    let isBrushing = false;
+    let overlayCtx = null;
+
+    function initBrushTool() {
+        const overlay = document.getElementById('overlayCanvas');
+        const container = document.getElementById('editorContainer');
+
+        container.addEventListener('mousedown', e => {
+            if (currentTool !== 'brush') return;
+            if (e.target.closest('.text-layer')) return;
+            isBrushing = true;
+            syncOverlaySize();
+            overlay.classList.add('active');
+            overlayCtx = overlay.getContext('2d');
+            const pos = getBrushPos(e);
+            overlayCtx.beginPath();
+            overlayCtx.moveTo(pos.x, pos.y);
+            drawBrushDot(pos);
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', e => {
+            if (!isBrushing) return;
+            const pos = getBrushPos(e);
+            drawBrushDot(pos);
+        });
+        document.addEventListener('mouseup', () => {
+            if (!isBrushing) return;
+            isBrushing = false;
+        });
+    }
+
+    function syncOverlaySize() {
+        const imgEl = document.getElementById('bgImage');
+        const overlay = document.getElementById('overlayCanvas');
+        overlay.width = imgEl.clientWidth;
+        overlay.height = imgEl.clientHeight;
+        overlay.style.width = imgEl.clientWidth + 'px';
+        overlay.style.height = imgEl.clientHeight + 'px';
+        // Redraw existing strokes if any
+        if (overlayCtx && brushStrokes.length) {
+            overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+            for (const s of brushStrokes) {
+                overlayCtx.beginPath();
+                overlayCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                overlayCtx.fillStyle = 'rgba(255, 50, 50, 0.4)';
+                overlayCtx.fill();
+            }
+        }
+    }
+
+    function getBrushPos(e) {
+        const container = document.getElementById('editorContainer').getBoundingClientRect();
+        return { x: e.clientX - container.left, y: e.clientY - container.top };
+    }
+
+    function drawBrushDot(pos) {
+        const r = parseInt(document.getElementById('brushSize').value) / 2;
+        overlayCtx.beginPath();
+        overlayCtx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+        overlayCtx.fillStyle = 'rgba(255, 50, 50, 0.4)';
+        overlayCtx.fill();
+        brushStrokes.push({ x: pos.x, y: pos.y, r });
+    }
+
+    async function applyBrushErase() {
+        if (!brushStrokes.length) {
+            toast('먼저 AI지우개 브러시로 지울 영역을 칠하세요');
+            return;
+        }
+        showLoading('AI 지우개 처리 중...');
+        try {
+            const imgEl = document.getElementById('bgImage');
+            const scaleX = imgEl.naturalWidth / imgEl.clientWidth;
+            const scaleY = imgEl.naturalHeight / imgEl.clientHeight;
+
+            // 1) 원본 이미지 blob
+            const srcCanvas = document.createElement('canvas');
+            srcCanvas.width = imgEl.naturalWidth;
+            srcCanvas.height = imgEl.naturalHeight;
+            srcCanvas.getContext('2d').drawImage(imgEl, 0, 0);
+            const imgBlob = await new Promise(r => srcCanvas.toBlob(r, 'image/png'));
+
+            // 2) 마스크 생성 (흰색 = 지울 영역, 검은색 = 유지)
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = imgEl.naturalWidth;
+            maskCanvas.height = imgEl.naturalHeight;
+            const mctx = maskCanvas.getContext('2d');
+            mctx.fillStyle = '#000000';
+            mctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+            mctx.fillStyle = '#ffffff';
+            for (const s of brushStrokes) {
+                mctx.beginPath();
+                mctx.arc(s.x * scaleX, s.y * scaleY, s.r * scaleX, 0, Math.PI * 2);
+                mctx.fill();
+            }
+            const maskBlob = await new Promise(r => maskCanvas.toBlob(r, 'image/png'));
+
+            // 3) API 호출
+            const fd = new FormData();
+            fd.append('file', imgBlob, 'image.png');
+            fd.append('mask', maskBlob, 'mask.png');
+            const res = await fetch(`${EDITOR_API}/ai-erase`, { method: 'POST', body: fd });
+            if (!res.ok) throw new Error(await res.text());
+            const resultBlob = await res.blob();
+            document.getElementById('bgImage').src = URL.createObjectURL(resultBlob);
+            clearBrush();
+            saveHistory();
+            toast('AI 지우기 완료');
+        } catch (e) {
+            toast('AI 지우기 오류: ' + e.message);
+        }
+        hideLoading();
+    }
+
+    function clearBrush() {
+        brushStrokes = [];
+        const overlay = document.getElementById('overlayCanvas');
+        overlay.classList.remove('active');
+        const ctx = overlay.getContext('2d');
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        toast('브러시 초기화');
+    }
+
+    function resizeImage() {
+        const w = document.getElementById('resizeW').value;
+        const h = document.getElementById('resizeH').value;
+        if (!w||!h) return toast('가로/세로 입력 필요');
+        const f = new FormData(); f.append('width',w); f.append('height',h);
+        callImageAPI('resize', f);
+    }
+
+    function cropSelection() {
+        if (!selRect || !selRect.w || !selRect.h) {
+            toast('영역선택 도구로 먼저 영역을 드래그하세요');
+            return;
+        }
+        const f = new FormData();
+        f.append('x', Math.round(selRect.x));
+        f.append('y', Math.round(selRect.y));
+        f.append('w', Math.round(selRect.w));
+        f.append('h', Math.round(selRect.h));
+        callImageAPI('crop', f).then(() => clearSelection());
+    }
+
+    async function regenerateAll() {
+        if (!confirm('전체 재생성하시겠습니까?')) return;
+        await fetch(`${API}/regenerate`, {method:'POST'});
+        showLoading('재생성 중...');
+        setTimeout(loadRedesign, 3000);
+    }
+
+    // ── 저장 (텍스트 레이어를 이미지에 합성) ─────
+    async function saveFinal() {
+        showLoading('저장 중...');
+        try {
+            const imgEl = document.getElementById('bgImage');
+            const canvas = document.createElement('canvas');
+            canvas.width = imgEl.naturalWidth;
+            canvas.height = imgEl.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgEl, 0, 0);
+
+            // 텍스트 레이어를 캔버스에 그리기
+            const scaleX = imgEl.naturalWidth / imgEl.clientWidth;
+            const scaleY = imgEl.naturalHeight / imgEl.clientHeight;
+
+            for (const layer of textLayers) {
+                const x = layer.x * scaleX;
+                const y = layer.y * scaleY;
+                const size = layer.fontSize * scaleX;
+
+                if (layer.bgEnabled) {
+                    ctx.fillStyle = layer.bgColor + 'cc';
+                    const metrics = ctx.measureText(layer.text);
+                    // 대략적 배경 크기
+                    ctx.font = `${layer.fontWeight} ${size}px sans-serif`;
+                    const lines = layer.text.split('\n');
+                    const lineH = size * 1.4;
+                    const maxW = Math.max(...lines.map(l => ctx.measureText(l).width));
+                    const pad = 12 * scaleX;
+                    ctx.beginPath();
+                    ctx.roundRect(x - pad, y - pad, maxW + pad*2, lines.length * lineH + pad*2, 8*scaleX);
+                    ctx.fill();
+                }
+
+                ctx.font = `${layer.fontWeight} ${size}px sans-serif`;
+                ctx.fillStyle = layer.color;
+                const lines = layer.text.split('\n');
+                const lineH = size * 1.4;
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, x, y + size + i * lineH);
+                });
+            }
+
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+
+            // 서버에 저장
+            const form = new FormData();
+            form.append('section', images[currentIdx]?.section_type || 'hero');
+            form.append('image', blob, 'final.png');
+            await fetch(`${API}/edit-section`, {method:'POST', body:form});
+
+            // 로컬 다운로드
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = images[currentIdx]?.filename || 'edited.png';
+            a.click();
+
+            toast('저장 완료');
+        } catch(e) { toast('저장 실패: ' + e.message); }
+        hideLoading();
+    }
+
+    // ── UI 유틸 ──────────────────────────────────
+    function showLoading(t) { document.getElementById('loadingText').textContent=t||'처리 중...'; document.getElementById('loading').classList.add('show'); }
+    function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+    function toast(m) { const e=document.getElementById('toast'); e.textContent=m; e.style.display='block'; setTimeout(()=>e.style.display='none',3000); }
+    </script>
+
+    <!-- 한글 웹폰트 -->
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+</body>
+</html>

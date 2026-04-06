@@ -180,10 +180,14 @@ class ApprovalQueueManager:
             results = []
             for r in rows:
                 item = dict(r)
-                item['needs_human_review'] = bool(item['needs_human_review'])
-                item['risk_notes'] = json.loads(item['risk_notes_json'])
-                item['raw_agent_output'] = json.loads(item['raw_agent_output'])
-                del item['risk_notes_json']
+                item['needs_human_review'] = bool(item.get('needs_human_review', 0))
+                item['risk_notes'] = json.loads(item.get('risk_notes_json') or '[]')
+                try:
+                    item['raw_agent_output'] = json.loads(item.get('raw_agent_output') or '{}')
+                except (json.JSONDecodeError, TypeError):
+                    item['raw_agent_output'] = {}
+                if 'risk_notes_json' in item:
+                    del item['risk_notes_json']
                 results.append(item)
             return results
 
@@ -196,10 +200,13 @@ class ApprovalQueueManager:
             
             if row:
                 item = dict(row)
-                item['needs_human_review'] = bool(item['needs_human_review'])
-                item['risk_notes'] = json.loads(item['risk_notes_json'])
-                item['raw_agent_output'] = json.loads(item['raw_agent_output'])
-                item['source_data'] = json.loads(item['source_data_json']) if item['source_data_json'] else {}
+                item['needs_human_review'] = bool(item.get('needs_human_review', 0))
+                item['risk_notes'] = json.loads(item.get('risk_notes_json') or '[]')
+                try:
+                    item['raw_agent_output'] = json.loads(item.get('raw_agent_output') or '{}')
+                except (json.JSONDecodeError, TypeError):
+                    item['raw_agent_output'] = {}
+                item['source_data'] = json.loads(item['source_data_json']) if item.get('source_data_json') else {}
                 del item['risk_notes_json']
                 del item['source_data_json']
                 return item
@@ -208,20 +215,54 @@ class ApprovalQueueManager:
     def update_reviewer_status(self, review_id: str, new_status: str, note: Optional[str] = None):
         if new_status not in self.VALID_STATUSES:
             raise ValueError(f"Invalid reviewer_status: {new_status}")
-            
+
         now = datetime.utcnow().isoformat()
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                UPDATE approval_queue 
+                UPDATE approval_queue
                 SET reviewer_status = ?, reviewer_note = ?, updated_at = ?
                 WHERE review_id = ?
             ''', (new_status, note, now, review_id))
-            
+
             if cursor.rowcount == 0:
                 raise KeyError(f"Review item {review_id} not found")
             conn.commit()
         logger.info(f"✅ Review {review_id} updated: {new_status}")
+
+    def update_item(self, review_id: str, updates: Dict[str, Any]):
+        """
+        Phase 3: 범용 update 메서드
+        approval_queue의 임의 필드를 업데이트합니다.
+        """
+        if not updates:
+            return
+
+        now = datetime.utcnow().isoformat()
+        updates['updated_at'] = now
+
+        # Build SET clause
+        set_parts = []
+        values = []
+        for key, value in updates.items():
+            set_parts.append(f"{key} = ?")
+            values.append(value)
+
+        values.append(review_id)
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f'''
+                UPDATE approval_queue
+                SET {', '.join(set_parts)}
+                WHERE review_id = ?
+            ''', values)
+
+            if cursor.rowcount == 0:
+                raise KeyError(f"Review item {review_id} not found")
+            conn.commit()
+
+        logger.info(f"✅ Review {review_id} updated: {list(updates.keys())}")
 
     def get_latest_revision(self, review_id: str) -> Optional[Dict[str, Any]]:
         """가장 최신(높은 revision_number)의 리비전을 조회합니다."""

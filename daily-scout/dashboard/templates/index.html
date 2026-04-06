@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortimove MD Dashboard | Premium Wellness Sourcing Intelligence</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        
+        .glass-dark {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+        
+        .fade-in { animation: fadeIn 0.6s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .hover-lift { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .hover-lift:hover { transform: translateY(-4px); box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.45); }
+        
+        .badge-pass { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .badge-pending { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        
+        .btn-action { padding: 6px 14px; border-radius: 8px; font-size: 0.875rem; font-weight: 600; transition: all 0.2s; cursor: pointer; border: none; }
+        .btn-source { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
+        .btn-source:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(17, 153, 142, 0.4); }
+        .btn-discard { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white; }
+        .btn-discard:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(235, 51, 73, 0.4); }
+        
+        .page-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .page-btn:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-2px); }
+        
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="p-6">
+
+    <!-- Header -->
+    <div class="glass rounded-2xl p-6 mb-6 fade-in">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">
+                    <i class="fas fa-chart-line mr-3"></i>Fortimove MD Dashboard
+                </h1>
+                <p class="text-white text-opacity-80">Premium Wellness Sourcing Intelligence (PostgreSQL)</p>
+            </div>
+            <div class="text-right">
+                <p class="text-white text-sm mb-1"><i class="far fa-calendar mr-2"></i>{{ summary.date }}</p>
+                <p class="text-white text-sm"><i class="fas fa-database mr-2"></i>Total: {{ total_count }} products</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Widgets -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div class="glass-dark rounded-2xl p-6 hover-lift fade-in">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                    <i class="fas fa-box text-white text-xl"></i>
+                </div>
+                <span class="text-4xl font-bold text-gray-800">{{ summary.total }}</span>
+            </div>
+            <p class="text-gray-600 font-medium">대기 중인 상품</p>
+        </div>
+
+        <div class="glass-dark rounded-2xl p-6 hover-lift fade-in" style="animation-delay: 0.1s;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                    <i class="fas fa-check-circle text-white text-xl"></i>
+                </div>
+                <span class="text-4xl font-bold text-gray-800">{{ summary.passed }}</span>
+            </div>
+            <p class="text-gray-600 font-medium">리스크 통과</p>
+        </div>
+
+        <div class="glass-dark rounded-2xl p-6 hover-lift fade-in" style="animation-delay: 0.2s;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center">
+                    <i class="fas fa-hourglass-half text-white text-xl"></i>
+                </div>
+                <span class="text-4xl font-bold text-gray-800">{{ summary.pending }}</span>
+            </div>
+            <p class="text-gray-600 font-medium">검토 보류</p>
+        </div>
+
+        <div class="glass-dark rounded-2xl p-6 hover-lift fade-in" style="animation-delay: 0.3s;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-600 flex items-center justify-center">
+                    <i class="fas fa-fire text-white text-xl"></i>
+                </div>
+                <span class="text-4xl font-bold text-gray-800">{{ "%.0f"|format(summary.max_score) }}</span>
+            </div>
+            <p class="text-gray-600 font-medium">최고 트렌드 점수</p>
+        </div>
+    </div>
+
+    <!-- Advanced Filter Bar -->
+    <div class="glass-dark rounded-2xl p-6 mb-6 fade-in" style="animation-delay: 0.4s;">
+        <div class="flex items-center mb-4">
+            <i class="fas fa-filter text-purple-600 mr-3 text-xl"></i>
+            <h2 class="text-xl font-bold text-gray-800">고급 필터링 & 검색</h2>
+        </div>
+
+        <form method="GET" action="/" class="space-y-4">
+            <!-- Search Bar -->
+            <div class="w-full">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-search mr-2"></i>검색 (상품명, 브랜드, 설명)
+                </label>
+                <input type="text" name="search" value="{{ search or '' }}"
+                       placeholder="검색어를 입력하세요..."
+                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+            </div>
+
+            <!-- Date Range & Filters -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt mr-2"></i>시작 날짜
+                    </label>
+                    <input type="date" name="date_from" value="{{ date_from or '' }}"
+                           class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt mr-2"></i>종료 날짜
+                    </label>
+                    <input type="date" name="date_to" value="{{ date_to or '' }}"
+                           class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-globe mr-2"></i>지역
+                    </label>
+                    <select name="region" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500">
+                        <option value="">전체 지역</option>
+                        {% for r in filter_options.regions %}
+                        <option value="{{ r }}" {% if region == r %}selected{% endif %}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-tag mr-2"></i>카테고리
+                    </label>
+                    <select name="category" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500">
+                        <option value="">전체 카테고리</option>
+                        {% for c in filter_options.categories %}
+                        <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-shield-alt mr-2"></i>리스크 상태
+                    </label>
+                    <select name="risk_status" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500">
+                        <option value="">전체 상태</option>
+                        {% for s in filter_options.risk_statuses %}
+                        <option value="{{ s }}" {% if risk_status == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="submit" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition">
+                    <i class="fas fa-search mr-2"></i>검색
+                </button>
+                <a href="/" class="px-6 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition">
+                    <i class="fas fa-redo mr-2"></i>초기화
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Products Table -->
+    <div class="glass-dark rounded-2xl p-6 fade-in" style="animation-delay: 0.5s;">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-boxes mr-3"></i>상품 목록
+                <span class="text-sm font-normal text-gray-600 ml-2">({{ products|length }}개 표시 중 / 총 {{ total_count }}개)</span>
+            </h2>
+            <div class="flex gap-2">
+                <button onclick="document.getElementById('uploadModal').classList.remove('hidden')" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-medium">
+                    <i class="fas fa-upload mr-2"></i>일괄 업로드
+                </button>
+                <a href="/api/products/template" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-medium">
+                    <i class="fas fa-file-download mr-2"></i>템플릿
+                </a>
+                <a href="/api/export/csv?region={{ region or '' }}&category={{ category or '' }}&risk_status={{ risk_status or '' }}&date_from={{ date_from or '' }}&date_to={{ date_to or '' }}&search={{ search or '' }}"
+                   class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
+                    <i class="fas fa-file-csv mr-2"></i>CSV 다운로드
+                </a>
+                <a href="/api/export/excel?region={{ region or '' }}&category={{ category or '' }}&risk_status={{ risk_status or '' }}&date_from={{ date_from or '' }}&date_to={{ date_to or '' }}&search={{ search or '' }}"
+                   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
+                    <i class="fas fa-file-excel mr-2"></i>Excel 다운로드
+                </a>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b-2 border-gray-200">
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">지역</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">상품명</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">브랜드</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">가격</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">카테고리</th>
+                        <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">점수</th>
+                        <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">상태</th>
+                        <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">URL</th>
+                        <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">작업</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition" id="product-{{ product.id }}">
+                        <td class="px-4 py-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold 
+                                {% if product.region == 'japan' %}bg-red-100 text-red-800
+                                {% elif product.region == 'us' %}bg-blue-100 text-blue-800
+                                {% elif product.region == 'uk' %}bg-purple-100 text-purple-800
+                                {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {{ product.region }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-4">
+                            <div class="font-medium text-gray-900 cursor-pointer hover:text-purple-600 underline"
+                                 onclick="showProductDetail({{ product.id }})">
+                                {{ product.product_name[:60] }}...
+                            </div>
+                        </td>
+                        <td class="px-4 py-4 text-gray-700">{{ product.brand or 'N/A' }}</td>
+                        <td class="px-4 py-4 text-gray-700 font-medium">{{ product.price or 'N/A' }}</td>
+                        <td class="px-4 py-4 text-gray-700">{{ product.category or 'N/A' }}</td>
+                        <td class="px-4 py-4 text-center">
+                            <span class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 text-white font-bold">
+                                {{ product.trend_score or 'N/A' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            {% if product.risk_status == '통과' %}
+                            <span class="badge-pass">통과</span>
+                            {% else %}
+                            <span class="badge-pending">보류</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            {% if product.url %}
+                            <a href="{{ product.url }}" target="_blank" class="inline-block px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg text-sm hover:shadow-lg transform hover:scale-105 transition">
+                                <i class="fas fa-external-link-alt mr-1"></i>보기
+                            </a>
+                            {% else %}N/A{% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            <div class="flex gap-2 justify-center">
+                                <button onclick="updateStatus({{ product.id }}, 'sourced')" class="btn-action btn-source">
+                                    <i class="fas fa-check mr-1"></i>채택
+                                </button>
+                                <button onclick="updateStatus({{ product.id }}, 'discarded')" class="btn-action btn-discard">
+                                    <i class="fas fa-trash mr-1"></i>지우기
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if products|length == 0 %}
+        <div class="text-center py-12">
+            <i class="fas fa-inbox text-gray-400 text-6xl mb-4"></i>
+            <p class="text-gray-600 text-lg">조건에 맞는 상품이 없습니다</p>
+        </div>
+        {% endif %}
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="flex gap-2 items-center justify-center mt-6">
+            {% if current_page > 1 %}
+            <a href="/?page={{ current_page - 1 }}{% if region %}&region={{ region }}{% endif %}{% if category %}&category={{ category }}{% endif %}{% if risk_status %}&risk_status={{ risk_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="page-btn">
+                <i class="fas fa-chevron-left mr-2"></i>이전
+            </a>
+            {% endif %}
+
+            <span class="text-white font-semibold px-4">페이지 {{ current_page }} / {{ total_pages }}</span>
+
+            {% if current_page < total_pages %}
+            <a href="/?page={{ current_page + 1 }}{% if region %}&region={{ region }}{% endif %}{% if category %}&category={{ category }}{% endif %}{% if risk_status %}&risk_status={{ risk_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="page-btn">
+                다음<i class="fas fa-chevron-right ml-2"></i>
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="document.getElementById('uploadModal').classList.add('hidden')">
+        <div class="glass-dark rounded-2xl p-8 max-w-2xl w-full mx-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-cloud-upload-alt mr-3 text-orange-600"></i>엑셀 일괄 업로드
+                </h2>
+                <button onclick="document.getElementById('uploadModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <p class="text-sm text-blue-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>필수 컬럼:</strong> product_name, region, date<br>
+                        <strong>지원 형식:</strong> CSV, XLS, XLSX<br>
+                        <strong>최대 개수:</strong> 1,000개 권장
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">파일 선택</label>
+                    <input type="file" id="uploadFile" accept=".csv,.xls,.xlsx"
+                           class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 transition cursor-pointer">
+                </div>
+
+                <div class="flex gap-4 justify-end">
+                    <button onclick="document.getElementById('uploadModal').classList.add('hidden')" class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                        취소
+                    </button>
+                    <button onclick="uploadFile()" class="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:shadow-lg transition">
+                        <i class="fas fa-upload mr-2"></i>업로드 시작
+                    </button>
+                </div>
+
+                <div id="uploadProgress" class="hidden">
+                    <div class="bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div id="progressBar" class="bg-gradient-to-r from-orange-500 to-orange-600 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p id="uploadStatus" class="text-sm text-gray-600 mt-2 text-center">업로드 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="productModal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="closeModal()">
+        <div class="glass-dark rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-info-circle mr-3 text-purple-600"></i>상품 상세 정보
+                </h2>
+                <button onclick="closeModal()" class="text-gray-600 hover:text-gray-800 transition">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <div id="modalContent" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // 상품 상태 업데이트
+        async function updateStatus(productId, status) {
+            const statusText = status === 'sourced' ? '채택' : '지우기';
+            
+            if (!confirm(`이 상품을 ${statusText} 처리하시겠습니까?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/products/${productId}/status?status=${status}`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const row = document.getElementById(`product-${productId}`);
+                    row.style.transition = 'all 0.3s ease-out';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(-20px)';
+                    
+                    setTimeout(() => location.reload(), 300);
+                } else {
+                    alert(`오류: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`네트워크 오류: ${error.message}`);
+            }
+        }
+
+        // 상품 상세 모달
+        async function showProductDetail(productId) {
+            try {
+                const response = await fetch(`/api/product/${productId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const p = result.data;
+                    document.getElementById('modalContent').innerHTML = `
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">상품명</p>
+                                    <p class="font-semibold text-gray-900">${p.product_name}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">브랜드</p>
+                                    <p class="font-semibold text-gray-900">${p.brand || 'N/A'}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">가격</p>
+                                    <p class="font-semibold text-gray-900">${p.price || 'N/A'}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">카테고리</p>
+                                    <p class="font-semibold text-gray-900">${p.category || 'N/A'}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">트렌드 점수</p>
+                                    <p class="font-semibold text-gray-900">${p.trend_score}/100</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">지역</p>
+                                    <p class="font-semibold text-gray-900">${p.region}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">출처</p>
+                                    <p class="font-semibold text-gray-900">${p.source}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">한국 수요</p>
+                                    <p class="font-semibold text-gray-900">${p.korea_demand || 'N/A'}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">리스크 상태</p>
+                                    <p class="font-semibold text-gray-900">${p.risk_status}</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-1">수집 날짜</p>
+                                    <p class="font-semibold text-gray-900">${p.date}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-2">상품 설명</p>
+                            <p class="text-gray-900">${p.description || 'N/A'}</p>
+                        </div>
+                        <div class="mt-6 bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-2">원본 URL</p>
+                            <a href="${p.url}" target="_blank" class="text-blue-600 hover:text-blue-800 break-all">${p.url}</a>
+                        </div>
+                        <div class="mt-6 flex gap-4 justify-between">
+                            <div class="flex gap-4">
+                                <button onclick="reassessRisk(${p.id})" class="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition">
+                                    <i class="fas fa-robot mr-2"></i>AI 재평가
+                                </button>
+                                <button onclick="showHistory(${p.id})" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition">
+                                    <i class="fas fa-history mr-2"></i>히스토리
+                                </button>
+                            </div>
+                            <div class="flex gap-4">
+                                <button onclick="updateStatus(${p.id}, 'sourced'); closeModal();" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-medium hover:shadow-lg transition">
+                                    <i class="fas fa-check mr-2"></i>채택하기
+                                </button>
+                                <button onclick="updateStatus(${p.id}, 'discarded'); closeModal();" class="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:shadow-lg transition">
+                                    <i class="fas fa-trash mr-2"></i>지우기
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('productModal').classList.remove('hidden');
+                } else {
+                    alert('상품 정보를 불러올 수 없습니다.');
+                }
+            } catch (error) {
+                alert(`오류: ${error.message}`);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('productModal').classList.add('hidden');
+        }
+
+        // AI 리스크 재평가
+        async function reassessRisk(productId) {
+            if (!confirm('AI가 이 상품의 리스크를 재평가합니다. 진행하시겠습니까? (약 10초 소요)')) {
+                return;
+            }
+
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>분석 중...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/product/${productId}/reassess`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`✅ AI 재평가 완료!\n\n리스크 상태: ${result.analysis.risk_status}\n리스크 점수: ${result.analysis.risk_score}/100\n\n페이지를 새로고침합니다.`);
+                    location.reload();
+                } else {
+                    alert(`❌ 재평가 실패: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`오류: ${error.message}`);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // 상품 상태 업데이트 (채택/지우기)
+        async function updateStatus(productId, status) {
+            try {
+                const response = await fetch(`/api/products/${productId}/status?status=${status}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`✅ 상태 변경 완료: ${status}`);
+                    location.reload();
+                } else {
+                    alert(`❌ 상태 변경 실패: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`오류: ${error.message}`);
+            }
+        }
+
+        // 히스토리 보기
+        async function showHistory(productId) {
+            try {
+                const response = await fetch(`/api/product/${productId}/history`);
+                const result = await response.json();
+
+                if (result.success && result.history.length > 0) {
+                    let historyHtml = '<div class="space-y-3">';
+
+                    result.history.forEach(h => {
+                        const date = new Date(h.created_at).toLocaleString('ko-KR');
+                        const actionIcon = h.action.includes('sourced') ? '✅' : h.action.includes('discarded') ? '❌' : '⏳';
+
+                        historyHtml += `
+                            <div class="bg-gray-50 p-4 rounded-lg border-l-4 ${h.action.includes('sourced') ? 'border-green-500' : h.action.includes('discarded') ? 'border-red-500' : 'border-yellow-500'}">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="font-semibold text-gray-800">${actionIcon} ${h.action}</span>
+                                    <span class="text-xs text-gray-500">${date}</span>
+                                </div>
+                                <p class="text-sm text-gray-600">
+                                    <strong>변경:</strong> ${h.old_status} → ${h.new_status}<br>
+                                    <strong>담당자:</strong> ${h.changed_by}<br>
+                                    ${h.notes ? '<strong>메모:</strong> ' + h.notes : ''}
+                                </p>
+                            </div>
+                        `;
+                    });
+
+                    historyHtml += '</div>';
+
+                    document.getElementById('modalContent').innerHTML = `
+                        <div class="mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-history mr-2 text-blue-600"></i>상품 히스토리 (총 ${result.count}건)
+                            </h3>
+                            ${historyHtml}
+                        </div>
+                        <div class="flex justify-end mt-6">
+                            <button onclick="showProductDetail(${productId})" class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                <i class="fas fa-arrow-left mr-2"></i>상품 상세로 돌아가기
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    alert('히스토리가 없습니다.');
+                }
+            } catch (error) {
+                alert(`오류: ${error.message}`);
+            }
+        }
+
+        // 엑셀 일괄 업로드
+        async function uploadFile() {
+            const fileInput = document.getElementById('uploadFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('uploadStatus');
+
+            progressDiv.classList.remove('hidden');
+            progressBar.style.width = '30%';
+            statusText.textContent = '파일 업로드 중...';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/products/bulk-upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                progressBar.style.width = '70%';
+                statusText.textContent = '데이터 처리 중...';
+
+                const result = await response.json();
+
+                progressBar.style.width = '100%';
+
+                if (result.success) {
+                    statusText.textContent = '완료!';
+                    alert(`✅ 업로드 완료!\n\n성공: ${result.inserted_count}개\n전체: ${result.total_rows}개\n실패: ${result.errors.length}개\n\n${result.errors.length > 0 ? '오류:\n' + result.errors.join('\n') : ''}`);
+                    location.reload();
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                progressBar.style.width = '0%';
+                progressDiv.classList.add('hidden');
+                alert(`❌ 업로드 실패: ${error.message}`);
+            }
+        }
+
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+
+</body>
+</html>

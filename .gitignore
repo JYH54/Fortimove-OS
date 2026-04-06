@@ -1,0 +1,33 @@
+# Environment & Secrets
+.env
+*.env.local
+.claude/settings.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Data (generated, not source)
+pm-agent/data/redesign_output/
+pm-agent/data/redesign_uploads/
+pm-agent/data/pick2sell_export/
+pm-agent/data/editor_temp/
+pm-agent/data/*.db
+sentinel/data/*.db
+sentinel/data/*.log
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

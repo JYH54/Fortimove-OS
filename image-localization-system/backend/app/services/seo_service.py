@@ -1,22 +1,67 @@
 """
-SEO 메타데이터 생성 서비스
+SEO 메타데이터 생성 서비스 (Gemini Flash 우선)
 """
 import logging
+import os
 from typing import List
-from anthropic import Anthropic
 
 from app.core.config import settings
 from app.models.schemas import SEOMetadata, TranslationResult
 
 logger = logging.getLogger(__name__)
 
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyD6chNQ-Nb8CcX1fqaegdv2Z-sKEnRhWfE")
+
 
 class SEOService:
-    """SEO 메타데이터 자동 생성 서비스"""
+    """SEO 메타데이터 자동 생성 서비스 (Gemini Flash 우선)"""
 
     def __init__(self):
-        """Anthropic Claude 클라이언트 초기화"""
-        self.client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        self._gemini_client = None
+        self._claude_client = None
+
+        if GOOGLE_API_KEY:
+            try:
+                from google import genai
+                self._gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
+                logger.info("SEO 서비스: Gemini Flash 사용")
+            except Exception:
+                pass
+
+        if not self._gemini_client:
+            try:
+                from anthropic import Anthropic
+                self._claude_client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+                logger.info("SEO 서비스: Claude 사용")
+            except Exception:
+                pass
+
+    def _call_llm(self, prompt: str, max_tokens: int = 2000) -> str:
+        if self._gemini_client:
+            try:
+                from google.genai import types
+                response = self._gemini_client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=max_tokens,
+                        temperature=0.5,
+                        thinking_config=types.ThinkingConfig(thinking_budget=0),
+                    ),
+                )
+                return response.text or ""
+            except Exception as e:
+                logger.warning(f"Gemini 호출 실패: {e}")
+
+        if self._claude_client:
+            message = self._claude_client.messages.create(
+                model=settings.TRANSLATION_MODEL,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return message.content[0].text
+
+        raise RuntimeError("사용 가능한 LLM 없음")
 
     async def generate_seo_metadata(
         self,
@@ -46,15 +91,8 @@ class SEOService:
                 brand_type
             )
 
-            # Claude API 호출
-            message = self.client.messages.create(
-                model=settings.TRANSLATION_MODEL,
-                max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-            # 응답 파싱
-            response_text = message.content[0].text
+            # LLM 호출 (Gemini Flash 또는 Claude)
+            response_text = self._call_llm(prompt, max_tokens=2000)
             seo_metadata = self._parse_seo_response(response_text)
 
             logger.info("SEO 메타데이터 생성 완료")

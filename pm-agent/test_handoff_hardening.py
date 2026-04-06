@@ -28,7 +28,7 @@ def test_handoff_no_approved_items_still_logs(client, aq):
     assert res.status_code == 200
     data = res.json()
     assert data["count"] == 0
-    assert data["slack"]["status"] == "log_only" # Assuming no env set
+    assert data["slack"]["status"] == "no_op" 
 
     # Verify DB record
     history = aq.get_handoff_history(limit=1)

@@ -5,8 +5,10 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import List
+import os
 import uuid
 from datetime import datetime
 
@@ -62,11 +64,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 설정
+# CORS 설정 (개발 환경용 - 모든 origin 허용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],  # 프로덕션에서는 특정 도메인만 허용
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -165,17 +167,28 @@ async def process_images(
             )
             all_risk_processings.extend(risk_processings)
 
-            # 5. 이미지 저장 (임시, 프로덕션에서는 S3)
+            # 5. 이미지 저장 (로컬 스토리지)
+            import os
             output_filename = f"{job_id}_{file.filename}"
-            # TODO: S3 업로드
+            output_path = os.path.join(settings.LOCAL_STORAGE_PATH, output_filename)
+
+            # 디렉토리 생성
+            os.makedirs(settings.LOCAL_STORAGE_PATH, exist_ok=True)
+
+            # 이미지 저장
+            processed_image.save(output_path, format="JPEG", quality=settings.OUTPUT_IMAGE_QUALITY)
+            file_size = os.path.getsize(output_path)
+
+            import urllib.parse
+            encoded_filename = urllib.parse.quote(output_filename)
 
             processed_images_list.append({
                 "original_filename": file.filename,
                 "processed_filename": output_filename,
-                "download_url": f"http://localhost:8000/downloads/{output_filename}",
+                "download_url": f"http://localhost:8000/downloads?file={encoded_filename}",
                 "width": processed_image.width,
                 "height": processed_image.height,
-                "file_size_bytes": 0  # TODO
+                "file_size_bytes": file_size
             })
 
         # 6. SEO 생성
@@ -219,6 +232,27 @@ async def process_images(
             updated_at=datetime.utcnow(),
             error_message=str(e)
         )
+
+
+from fastapi import Query
+
+@app.get("/downloads")
+async def download_image(file: str = Query(..., description="파일명")):
+    """처리된 이미지 다운로드"""
+    # 경로 탐색 공격 방지
+    if ".." in file or "/" in file or "\\" in file:
+        raise HTTPException(status_code=400, detail="잘못된 파일명입니다")
+
+    file_path = os.path.join(settings.LOCAL_STORAGE_PATH, file)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"파일을 찾을 수 없습니다: {file}")
+
+    return FileResponse(
+        file_path,
+        media_type="image/jpeg",
+        filename=file
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI & FinOps - FORTIMOVE GLOBAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#c9d1d9; --brand:#e94560; --blue:#58a6ff; --green:#3fb950; --yellow:#d29922; --red:#da3633; --purple:#8957e5; --cyan:#39d2c0; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); color:var(--text); font-family:'Noto Sans KR',sans-serif; }
+
+        .top-nav { background:#1a1a2e; height:48px; display:flex; align-items:center; padding:0 24px; gap:8px; }
+        .top-nav a { color:#8b949e; text-decoration:none; padding:6px 12px; border-radius:6px; font-size:13px; }
+        .top-nav a:hover { color:#fff; background:rgba(255,255,255,.08); }
+        .top-nav a.active { color:var(--blue); background:rgba(88,166,255,.1); }
+        .top-nav .brand { color:var(--brand); font-weight:900; font-size:1.1rem; margin-right:16px; }
+
+        .container { max-width:1400px; margin:0 auto; padding:20px 24px; }
+
+        /* 탭 */
+        .tab-bar { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:24px; }
+        .tab-btn { padding:10px 20px; font-size:14px; font-weight:700; color:var(--text); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; }
+        .tab-btn:hover { color:#fff; }
+        .tab-btn.active { color:var(--brand); border-bottom-color:var(--brand); }
+        .tab-panel { display:none; } .tab-panel.active { display:block; }
+
+        /* KPI 카드 */
+        .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+        .kpi { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; position:relative; overflow:hidden; }
+        .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+        .kpi.blue::before { background:var(--blue); } .kpi.green::before { background:var(--green); }
+        .kpi.yellow::before { background:var(--yellow); } .kpi.red::before { background:var(--red); }
+        .kpi.purple::before { background:var(--purple); } .kpi.cyan::before { background:var(--cyan); }
+        .kpi .label { font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+        .kpi .value { font-size:2rem; font-weight:900; color:#fff; }
+        .kpi .sub { font-size:12px; color:#8b949e; margin-top:4px; }
+
+        /* 그리드 */
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+        .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:24px; }
+        @media(max-width:768px) { .kpi-grid,.grid-2,.grid-3 { grid-template-columns:1fr; } }
+
+        /* 카드 */
+        .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+        .card-title { font-size:12px; font-weight:700; color:#8b949e; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; }
+
+        /* 테이블 */
+        .data-table { width:100%; border-collapse:collapse; }
+        .data-table th { font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:0.5px; padding:8px 12px; border-bottom:1px solid var(--border); text-align:left; }
+        .data-table td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+        .data-table tr:hover { background:rgba(255,255,255,.02); }
+
+        /* 차트 바 */
+        .bar-chart { display:flex; flex-direction:column; gap:8px; }
+        .bar-row { display:flex; align-items:center; gap:10px; }
+        .bar-label { font-size:12px; min-width:100px; color:#8b949e; }
+        .bar-bg { flex:1; height:20px; background:var(--border); border-radius:4px; overflow:hidden; }
+        .bar-fill { height:100%; border-radius:4px; transition:width .5s; min-width:2px; }
+        .bar-value { font-size:12px; min-width:60px; text-align:right; font-weight:700; }
+
+        /* 뱃지 */
+        .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+        .badge-ok { background:rgba(63,185,80,.15); color:var(--green); }
+        .badge-warn { background:rgba(210,153,34,.15); color:var(--yellow); }
+        .badge-danger { background:rgba(218,54,51,.15); color:var(--red); }
+
+        /* 예산 게이지 */
+        .gauge { text-align:center; padding:20px; }
+        .gauge-ring { width:160px; height:160px; border-radius:50%; margin:0 auto 12px; position:relative; display:flex; align-items:center; justify-content:center; }
+        .gauge-ring .gauge-value { font-size:2rem; font-weight:900; color:#fff; }
+        .gauge-ring .gauge-label { font-size:11px; color:#8b949e; }
+
+        /* 로그 */
+        .log-item { padding:8px 12px; border-bottom:1px solid var(--border); font-size:12px; display:flex; gap:12px; align-items:center; }
+        .log-item:last-child { border:none; }
+        .log-time { color:#8b949e; min-width:60px; }
+        .log-provider { font-weight:700; min-width:70px; }
+        .log-cost { min-width:60px; text-align:right; font-weight:700; }
+
+        .loading { color:#8b949e; font-size:13px; padding:40px; text-align:center; }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <a class="brand" href="/">FORTIMOVE GLOBAL</a>
+        <a href="/workbench">워크벤치</a>
+        <a href="/">홈</a>
+        <a href="/coo">COO 브리핑</a>
+        <a href="/review/list">리뷰</a>
+        <a href="/redesign/queue">상세페이지</a>
+        <a href="/agents">에이전트</a>
+        <a href="/bi" class="active">BI & FinOps</a>
+    </nav>
+
+    <div class="container">
+        <!-- 탭 -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('bi')">BI 대시보드</button>
+            <button class="tab-btn" onclick="switchTab('finops')">AI FinOps</button>
+            <button class="tab-btn" onclick="switchTab('logs')">실시간 로그</button>
+        </div>
+
+        <!-- ═══ BI 대시보드 ═══ -->
+        <div class="tab-panel active" id="tab-bi">
+            <!-- KPI 카드 -->
+            <div class="kpi-grid">
+                <div class="kpi blue">
+                    <div class="label">전체 상품</div>
+                    <div class="value" id="biTotal">-</div>
+                    <div class="sub" id="biTotalSub">파이프라인 내 상품</div>
+                </div>
+                <div class="kpi green">
+                    <div class="label">AI 발견 마진 합계</div>
+                    <div class="value" id="biMargin">-</div>
+                    <div class="sub">에이전트가 계산한 총 예상 이익</div>
+                </div>
+                <div class="kpi red">
+                    <div class="label">리스크 차단</div>
+                    <div class="value" id="biRisk">-</div>
+                    <div class="sub" id="biRiskSub">AI가 사전 차단한 위험 상품</div>
+                </div>
+                <div class="kpi purple">
+                    <div class="label">평균 스코어</div>
+                    <div class="value" id="biScore">-</div>
+                    <div class="sub" id="biScoreSub">최고/최저</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- 에이전트 성과 -->
+                <div class="card">
+                    <div class="card-title">에이전트별 성과</div>
+                    <div id="biAgentPerf" class="loading">로딩 중...</div>
+                </div>
+
+                <!-- 파이프라인 현황 -->
+                <div class="card">
+                    <div class="card-title">파이프라인 현황</div>
+                    <div id="biPipeline" class="loading">로딩 중...</div>
+                </div>
+            </div>
+
+            <!-- 마진 상위 상품 -->
+            <div class="card">
+                <div class="card-title">AI 발견 마진 상위 상품 TOP 10</div>
+                <table class="data-table" id="biTopProducts">
+                    <thead><tr><th>상품명</th><th>스코어</th><th>예상 마진</th><th>판정</th></tr></thead>
+                    <tbody><tr><td colspan="4" class="loading">로딩 중...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ AI FinOps ═══ -->
+        <div class="tab-panel" id="tab-finops">
+            <div class="kpi-grid">
+                <div class="kpi cyan">
+                    <div class="label">이번 달 AI 비용</div>
+                    <div class="value" id="foMonthCost">-</div>
+                    <div class="sub" id="foMonthSub">예산 대비</div>
+                </div>
+                <div class="kpi blue">
+                    <div class="label">총 API 호출</div>
+                    <div class="value" id="foCalls">-</div>
+                    <div class="sub" id="foCallsSub">성공/실패</div>
+                </div>
+                <div class="kpi green">
+                    <div class="label">총 토큰 사용</div>
+                    <div class="value" id="foTokens">-</div>
+                    <div class="sub">입력 + 출력</div>
+                </div>
+                <div class="kpi yellow">
+                    <div class="label">예산 잔여</div>
+                    <div class="value" id="foBudgetLeft">-</div>
+                    <div class="sub" id="foBudgetSub">이번 달 한도</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- 프로바이더별 비용 -->
+                <div class="card">
+                    <div class="card-title">프로바이더별 비용</div>
+                    <div id="foByProvider" class="loading">로딩 중...</div>
+                </div>
+
+                <!-- 작업 유형별 비용 -->
+                <div class="card">
+                    <div class="card-title">작업 유형별 비용</div>
+                    <div id="foByTask" class="loading">로딩 중...</div>
+                </div>
+            </div>
+
+            <!-- 일별 추이 -->
+            <div class="card">
+                <div class="card-title">일별 AI 비용 추이 (30일)</div>
+                <div id="foDailyChart" class="loading">로딩 중...</div>
+            </div>
+
+            <!-- 예산 설정 -->
+            <div class="card" style="margin-top:16px;">
+                <div class="card-title">월별 예산 설정</div>
+                <div style="display:flex;gap:12px;align-items:end;">
+                    <div>
+                        <label style="font-size:11px;color:#8b949e;">월</label>
+                        <input type="month" id="budgetMonth" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#8b949e;">예산 (KRW)</label>
+                        <input type="number" id="budgetAmount" value="100000" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;width:120px;">
+                    </div>
+                    <button onclick="setBudget()" style="background:var(--brand);border:none;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;">설정</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ 실시간 로그 ═══ -->
+        <div class="tab-panel" id="tab-logs">
+            <div class="card">
+                <div class="card-title">최근 AI API 호출 로그 (실시간)</div>
+                <div id="logsContainer" class="loading">로딩 중...</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const BI_API = '/api/bi';
+
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`.tab-btn[onclick*="${name}"]`).classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'logs') loadLogs();
+}
+
+function fmt(n) { return n != null ? Number(n).toLocaleString() : '-'; }
+
+// ── BI 대시보드 ─────────────────────────
+async function loadBI() {
+    try {
+        const [overview, perf] = await Promise.all([
+            fetch(`${BI_API}/overview`).then(r => r.json()),
+            fetch(`${BI_API}/agent-performance`).then(r => r.json()),
+        ]);
+
+        // KPI
+        const p = overview.pipeline || {};
+        document.getElementById('biTotal').textContent = fmt(p.total_products);
+        document.getElementById('biTotalSub').textContent = `승인:${p.approved||0} 대기:${(p.draft||0)+(p.under_review||0)} 거부:${p.rejected||0}`;
+
+        const fi = perf.financial_impact || {};
+        document.getElementById('biMargin').textContent = '₩' + fmt(fi.total_margin_discovered_krw);
+        document.getElementById('biRisk').textContent = fmt(fi.risk_blocked_count) + '건';
+        document.getElementById('biRiskSub').textContent = `추정 방어 가치 ₩${fmt(fi.risk_blocked_value_est_krw)}`;
+        document.getElementById('biScore').textContent = fmt(p.avg_score);
+        document.getElementById('biScoreSub').textContent = `최고:${p.max_score||'-'} / 최저:${p.min_score||'-'}`;
+
+        // 에이전트 성과 바 차트
+        const agents = perf.agent_stats || [];
+        const maxRuns = Math.max(...agents.map(a => a.total_runs), 1);
+        document.getElementById('biAgentPerf').innerHTML = agents.length ? `<div class="bar-chart">${agents.map(a => `
+            <div class="bar-row">
+                <div class="bar-label">${a.display_name.replace(' Agent','')}</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${a.total_runs/maxRuns*100}%;background:${a.success_rate>=90?'var(--green)':a.success_rate>=50?'var(--yellow)':'var(--red)'};"></div></div>
+                <div class="bar-value">${a.total_runs}회</div>
+            </div>
+        `).join('')}</div>` : '<div class="loading">에이전트 데이터 없음</div>';
+
+        // 파이프라인 현황
+        const stages = [
+            {label:'초안',count:p.draft||0,color:'var(--text)'},
+            {label:'검토중',count:p.under_review||0,color:'var(--blue)'},
+            {label:'승인',count:p.approved||0,color:'var(--green)'},
+            {label:'보류',count:p.hold||0,color:'var(--yellow)'},
+            {label:'거부',count:p.rejected||0,color:'var(--red)'},
+            {label:'콘텐츠완료',count:p.content_done||0,color:'var(--cyan)'},
+        ];
+        const maxStage = Math.max(...stages.map(s=>s.count),1);
+        document.getElementById('biPipeline').innerHTML = `<div class="bar-chart">${stages.map(s=>`
+            <div class="bar-row">
+                <div class="bar-label">${s.label}</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${s.count/maxStage*100}%;background:${s.color};"></div></div>
+                <div class="bar-value">${s.count}건</div>
+            </div>
+        `).join('')}</div>`;
+
+        // TOP 상품
+        const products = perf.top_products || [];
+        document.querySelector('#biTopProducts tbody').innerHTML = products.length ? products.map(p => `
+            <tr>
+                <td>${p.title}</td>
+                <td><span style="color:${p.score>=70?'var(--green)':p.score>=40?'var(--yellow)':'var(--red)'};font-weight:700;">${p.score}</span></td>
+                <td style="font-weight:700;color:var(--green);">₩${fmt(p.margin_profit)}</td>
+                <td><span class="badge ${p.decision==='등록 가능'?'badge-ok':'badge-warn'}">${p.decision||'-'}</span></td>
+            </tr>
+        `).join('') : '<tr><td colspan="4" class="loading">데이터 없음</td></tr>';
+
+    } catch (e) { console.error('BI load error:', e); }
+}
+
+// ── FinOps ───────────────────────────────
+async function loadFinOps() {
+    try {
+        const [summary, budget] = await Promise.all([
+            fetch(`${BI_API}/finops/summary?days=30`).then(r => r.json()),
+            fetch(`${BI_API}/finops/budget`).then(r => r.json()),
+        ]);
+
+        const t = summary.total || {};
+        const cur = budget.current_month || {};
+        const budgetKrw = cur.budget_krw || 100000;
+        const spentKrw = cur.spent_krw || t.total_cost_krw || 0;
+        const leftKrw = Math.max(0, budgetKrw - spentKrw);
+
+        document.getElementById('foMonthCost').textContent = '₩' + fmt(Math.round(spentKrw));
+        document.getElementById('foMonthSub').textContent = `예산 ₩${fmt(budgetKrw)} 중 ${Math.round(spentKrw/budgetKrw*100)}% 사용`;
+        document.getElementById('foCalls').textContent = fmt(t.total_calls);
+        document.getElementById('foCallsSub').textContent = `성공:${t.success_count||0} 실패:${t.fail_count||0}`;
+        document.getElementById('foTokens').textContent = fmt(t.total_tokens);
+        document.getElementById('foBudgetLeft').textContent = '₩' + fmt(Math.round(leftKrw));
+        document.getElementById('foBudgetSub').textContent = `한도 ₩${fmt(budgetKrw)}/월`;
+
+        // 프로바이더별
+        const providers = summary.by_provider || [];
+        const maxPCost = Math.max(...providers.map(p => p.cost_krw || 0), 1);
+        document.getElementById('foByProvider').innerHTML = providers.length ? `<div class="bar-chart">${providers.map(p => `
+            <div class="bar-row">
+                <div class="bar-label">${p.provider} <span style="color:#555;font-size:10px;">${(p.model||'').substring(0,15)}</span></div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(p.cost_krw||0)/maxPCost*100}%;background:${p.provider==='anthropic'?'var(--purple)':'var(--cyan)'};"></div></div>
+                <div class="bar-value">₩${fmt(p.cost_krw)}</div>
+            </div>
+        `).join('')}</div>` : '<div style="color:#8b949e;font-size:13px;">아직 사용 기록이 없습니다. 워크벤치에서 콘텐츠를 생성하면 여기에 표시됩니다.</div>';
+
+        // 작업 유형별
+        const tasks = summary.by_task || [];
+        const maxTCost = Math.max(...tasks.map(t => t.cost_krw || 0), 1);
+        document.getElementById('foByTask').innerHTML = tasks.length ? `<div class="bar-chart">${tasks.map(t => `
+            <div class="bar-row">
+                <div class="bar-label">${t.task_type}</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(t.cost_krw||0)/maxTCost*100}%;background:var(--blue);"></div></div>
+                <div class="bar-value">₩${fmt(t.cost_krw)}</div>
+            </div>
+        `).join('')}</div>` : '<div style="color:#8b949e;font-size:13px;">사용 기록 없음</div>';
+
+        // 일별 추이
+        const daily = summary.daily_trend || [];
+        const maxDCost = Math.max(...daily.map(d => d.cost_krw || 0), 1);
+        document.getElementById('foDailyChart').innerHTML = daily.length ? `<div class="bar-chart">${daily.map(d => `
+            <div class="bar-row">
+                <div class="bar-label">${d.date?.substring(5)||''}</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(d.cost_krw||0)/maxDCost*100}%;background:var(--cyan);"></div></div>
+                <div class="bar-value">₩${fmt(d.cost_krw)} <span style="color:#555;font-size:10px;">${d.calls}회</span></div>
+            </div>
+        `).join('')}</div>` : '<div style="color:#8b949e;font-size:13px;">일별 데이터 없음</div>';
+
+        // 예산 월 기본값
+        document.getElementById('budgetMonth').value = new Date().toISOString().substring(0,7);
+
+    } catch (e) { console.error('FinOps load error:', e); }
+}
+
+async function setBudget() {
+    const month = document.getElementById('budgetMonth').value;
+    const amount = parseFloat(document.getElementById('budgetAmount').value);
+    if (!month || !amount) return;
+    await fetch(`${BI_API}/finops/budget/${month}`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ budget_krw: amount })
+    });
+    loadFinOps();
+}
+
+// ── 실시간 로그 ──────────────────────────
+async function loadLogs() {
+    try {
+        const data = await fetch(`${BI_API}/finops/realtime`).then(r => r.json());
+        const logs = data.logs || [];
+        document.getElementById('logsContainer').innerHTML = logs.length ? logs.map(l => {
+            const time = l.timestamp?.substring(11,19) || '';
+            const provColor = l.provider === 'anthropic' ? 'var(--purple)' : 'var(--cyan)';
+            const status = l.success ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-danger">FAIL</span>';
+            return `<div class="log-item">
+                <div class="log-time">${time}</div>
+                <div class="log-provider" style="color:${provColor};">${l.provider}</div>
+                <div style="flex:1;color:#8b949e;">${l.task_type} ${l.agent_name?'('+l.agent_name+')':''}</div>
+                <div style="min-width:80px;font-size:11px;">${fmt(l.input_tokens)}+${fmt(l.output_tokens)}tk</div>
+                <div class="log-cost" style="color:var(--cyan);">₩${l.cost_krw>0?fmt(Math.round(l.cost_krw)):'0'}</div>
+                ${status}
+            </div>`;
+        }).join('') : '<div style="color:#8b949e;font-size:13px;padding:20px;text-align:center;">아직 로그가 없습니다</div>';
+    } catch (e) { console.error('Logs error:', e); }
+}
+
+// 초기 로드
+loadBI();
+loadFinOps();
+setInterval(loadBI, 60000);
+setInterval(loadFinOps, 30000);
+</script>
+</body>
+</html>

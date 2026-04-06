@@ -1,0 +1,639 @@
+"""
+Phase 1 Content Generation API
+상품 콘텐츠 생성 API 엔드포인트
+
+아키텍처 재정렬 (2026-04-01):
+- DetailPageStrategist: LLM 기반 상세페이지 콘텐츠 생성 (최우선)
+- ProductContentGenerator: 룰 기반 보조 생성 (fallback)
+"""
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+import sqlite3
+import json
+from pathlib import Path
+from datetime import datetime
+import logging
+
+from product_content_generator import ProductContentGenerator, ComplianceFilter
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/phase1", tags=["Phase1-Content-Generation"])
+
+# Database path
+DB_PATH = Path(__file__).parent / "data" / "approval_queue.db"
+
+def get_db():
+    """Get database connection"""
+    return sqlite3.connect(str(DB_PATH))
+
+
+class ContentGenerationRequest(BaseModel):
+    """콘텐츠 생성 요청"""
+    regenerate: bool = False  # 기존 콘텐츠가 있어도 재생성할지
+    tone: Optional[str] = None  # 톤: premium, health, trendy, value, minimal
+    target_platform: Optional[str] = None  # naver, coupang, both
+
+
+def get_review_data(review_id: str) -> Optional[Dict[str, Any]]:
+    """리뷰 데이터 조회"""
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM approval_queue WHERE review_id = ?", (review_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    # Row를 dict로 변환
+    review_data = dict(row)
+
+    # JSON 필드 파싱
+    json_fields = [
+        'source_data_json', 'reviewed_images_json', 'raw_agent_output',
+        'product_summary_json', 'detail_content_json', 'image_design_json',
+        'sales_strategy_json', 'risk_assessment_json'
+    ]
+
+    for field in json_fields:
+        if review_data.get(field):
+            try:
+                review_data[field] = json.loads(review_data[field])
+            except:
+                pass
+
+    return review_data
+
+
+def save_content_to_db(review_id: str, content_type: str, content: Dict[str, Any]):
+    """생성된 콘텐츠를 DB에 저장"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    field_map = {
+        'summary': 'product_summary_json',
+        'detail': 'detail_content_json',
+        'image_design': 'image_design_json',
+        'sales_strategy': 'sales_strategy_json',
+        'risk_assessment': 'risk_assessment_json'
+    }
+
+    field_name = field_map.get(content_type)
+    if not field_name:
+        conn.close()
+        raise ValueError(f"Unknown content type: {content_type}")
+
+    content_json = json.dumps(content, ensure_ascii=False)
+    now = datetime.now().isoformat()
+
+    cursor.execute(f"""
+        UPDATE approval_queue
+        SET {field_name} = ?,
+            content_generated_at = ?,
+            updated_at = ?
+        WHERE review_id = ?
+    """, (content_json, now, now, review_id))
+
+    conn.commit()
+    conn.close()
+
+
+def _sync_generated_columns(review_id: str, summary: dict, detail: dict, strategy: dict):
+    """콘텐츠 생성 결과를 generated_* 개별 컬럼에 동기화"""
+    try:
+        title = summary.get("source_title", "")
+        positioning = summary.get("positioning_summary", "")
+        usp = summary.get("usp_points", [])
+
+        # LLM 결과에 별도 naver_title/coupang_title이 있으면 우선 사용
+        naver_title = (detail.get("naver_title") or detail.get("main_title", "") or f"[프리미엄] {positioning[:40]}").replace('\n', ' ').strip()[:100]
+        naver_desc = detail.get("naver_body", "") or positioning
+        coupang_title = (detail.get("coupang_title") or detail.get("main_title", naver_title)).replace('\n', ' ').strip()[:100]
+        coupang_desc = detail.get("coupang_body", "") or naver_desc
+
+        # 태그
+        keywords = strategy.get("primary_keywords", []) + strategy.get("secondary_keywords", [])
+        tags_json = json.dumps(keywords[:15], ensure_ascii=False) if keywords else None
+
+        now = datetime.now().isoformat()
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE approval_queue
+            SET generated_naver_title = COALESCE(?, generated_naver_title),
+                generated_naver_description = COALESCE(?, generated_naver_description),
+                generated_naver_tags = COALESCE(?, generated_naver_tags),
+                generated_coupang_title = COALESCE(?, generated_coupang_title),
+                generated_coupang_description = COALESCE(?, generated_coupang_description),
+                content_status = 'completed',
+                updated_at = ?
+            WHERE review_id = ?
+        ''', (naver_title, naver_desc, tags_json, coupang_title, coupang_desc, now, review_id))
+        conn.commit()
+        conn.close()
+        logger.info(f"✅ generated_* 컬럼 동기화 완료: {review_id}")
+    except Exception as e:
+        logger.warning(f"generated_* 컬럼 동기화 실패: {e}")
+
+
+@router.post("/review/{review_id}/generate-summary")
+async def generate_product_summary(review_id: str, request: ContentGenerationRequest):
+    """
+    상품 핵심 요약 생성
+
+    Returns:
+        - positioning_summary: 포지셔닝 요약
+        - usp_points: USP 포인트 (List)
+        - target_customer: 타겟 고객
+        - usage_scenarios: 사용 시나리오 (List)
+        - differentiation_points: 차별화 포인트 (List)
+        - search_intent_summary: 검색 의도 요약
+    """
+    try:
+        review_data = get_review_data(review_id)
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        # 이미 생성된 콘텐츠가 있고 재생성이 아니면 기존 반환
+        if review_data.get('product_summary_json') and not request.regenerate:
+            return {
+                "status": "success",
+                "message": "기존 생성된 요약 반환",
+                "data": review_data['product_summary_json'],
+                "regenerated": False
+            }
+
+        # 콘텐츠 생성
+        generator = ProductContentGenerator()
+        summary = generator.generate_product_summary(review_data)
+
+        # DB 저장
+        save_content_to_db(review_id, 'summary', summary)
+
+        return {
+            "status": "success",
+            "message": "상품 요약 생성 완료",
+            "data": summary,
+            "regenerated": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"상품 요약 생성 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/review/{review_id}/generate-detail-content")
+async def generate_detail_content(review_id: str, request: ContentGenerationRequest):
+    """
+    상세페이지 콘텐츠 생성 (LLM 기반 - DetailPageStrategist)
+
+    Returns:
+        - main_title: 메인 타이틀
+        - hook_copies: 훅 카피 (List)
+        - key_benefits: 핵심 혜택 (List)
+        - problem_scenarios: 문제 시나리오 (List)
+        - solution_narrative: 솔루션 내러티브
+        - target_users: 타겟 사용자
+        - usage_guide: 사용 가이드
+        - cautions: 주의사항
+        - faq: FAQ (List of {q, a})
+        - naver_body: 네이버 본문
+        - coupang_body: 쿠팡 본문
+        - short_ad_copies: 짧은 광고 문구 (List)
+        - compliance_warnings: 컴플라이언스 경고 (List)
+    """
+    try:
+        review_data = get_review_data(review_id)
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        # 이미 생성된 콘텐츠가 있고 재생성이 아니면 기존 반환
+        if review_data.get('detail_content_json') and not request.regenerate:
+            return {
+                "status": "success",
+                "message": "기존 생성된 상세 콘텐츠 반환",
+                "data": review_data['detail_content_json'],
+                "regenerated": False,
+                "generation_method": "cached"
+            }
+
+        # 상품 요약이 없으면 먼저 생성
+        summary = review_data.get('product_summary_json')
+        if not summary:
+            generator = ProductContentGenerator()
+            summary = generator.generate_product_summary(review_data)
+            save_content_to_db(review_id, 'summary', summary)
+
+        # LLM 기반 상세 콘텐츠 생성 (DetailPageStrategist 사용)
+        try:
+            from detail_page_strategist import DetailPageStrategist
+            strategist = DetailPageStrategist()
+
+            # source_data 준비
+            source_data = review_data.get('source_data_json', {})
+            if isinstance(source_data, str):
+                source_data = json.loads(source_data)
+
+            source_data['source_title'] = review_data.get('source_title', '')
+            source_data['category'] = review_data.get('category', 'wellness')
+
+            # DetailPageStrategist로 생성
+            detail_content = strategist.generate_detail_page_content(
+                product_summary=summary,
+                source_data=source_data,
+                category=review_data.get('category', 'wellness')
+            )
+
+            generation_method = "llm"
+            logger.info(f"✅ LLM 기반 콘텐츠 생성 성공: {review_id}")
+
+        except Exception as llm_error:
+            # LLM 실패 시 룰 기반으로 fallback
+            logger.warning(f"⚠️ LLM 생성 실패, 룰 기반 fallback: {llm_error}")
+            generator = ProductContentGenerator()
+            detail_content = generator.generate_detail_content(review_data, summary)
+            generation_method = "rule-based (fallback)"
+
+        # DB 저장
+        save_content_to_db(review_id, 'detail', detail_content)
+
+        return {
+            "status": "success",
+            "message": f"상세 콘텐츠 생성 완료 ({generation_method})",
+            "data": detail_content,
+            "regenerated": True,
+            "generation_method": generation_method,
+            "compliance_warnings": detail_content.get("compliance_warnings", [])
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"상세 콘텐츠 생성 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/review/{review_id}/generate-image-design")
+async def generate_image_design(review_id: str, request: ContentGenerationRequest):
+    """
+    이미지 디자인 가이드 생성
+
+    Returns:
+        - main_thumbnail_copy: 메인 썸네일 카피
+        - sub_thumbnail_copies: 서브 썸네일 카피 (List)
+        - banner_copy: 배너 카피
+        - section_copies: 섹션별 카피 (List)
+        - layout_guide: 레이아웃 가이드
+        - tone_manner: 톤앤매너
+        - forbidden_expressions: 금지 표현 (List)
+        - generation_prompt: 이미지 생성 프롬프트
+        - edit_prompt: 이미지 편집 프롬프트
+    """
+    try:
+        review_data = get_review_data(review_id)
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        # 이미 생성된 콘텐츠가 있고 재생성이 아니면 기존 반환
+        if review_data.get('image_design_json') and not request.regenerate:
+            return {
+                "status": "success",
+                "message": "기존 생성된 이미지 디자인 가이드 반환",
+                "data": review_data['image_design_json'],
+                "regenerated": False
+            }
+
+        # 상품 요약이 없으면 먼저 생성
+        summary = review_data.get('product_summary_json')
+        if not summary:
+            generator = ProductContentGenerator()
+            summary = generator.generate_product_summary(review_data)
+            save_content_to_db(review_id, 'summary', summary)
+
+        # 이미지 디자인 가이드 생성
+        generator = ProductContentGenerator()
+        image_design = generator.generate_image_design_guide(review_data, summary)
+
+        # DB 저장
+        save_content_to_db(review_id, 'image_design', image_design)
+
+        return {
+            "status": "success",
+            "message": "이미지 디자인 가이드 생성 완료",
+            "data": image_design,
+            "regenerated": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"이미지 디자인 가이드 생성 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/review/{review_id}/generate-sales-strategy")
+async def generate_sales_strategy(review_id: str, request: ContentGenerationRequest):
+    """
+    판매 전략 생성
+
+    Returns:
+        - target_audience: 타겟 오디언스
+        - ad_points: 광고 포인트 (List)
+        - primary_keywords: 1차 키워드 (List)
+        - secondary_keywords: 2차 키워드 (List)
+        - hashtags: 해시태그 (List)
+        - review_points: 리뷰 포인트 (List)
+        - price_positioning: 가격 포지셔닝
+        - sales_channels: 판매 채널 (List)
+        - competitive_angles: 경쟁 우위 각도 (List)
+    """
+    try:
+        review_data = get_review_data(review_id)
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        # 이미 생성된 콘텐츠가 있고 재생성이 아니면 기존 반환
+        if review_data.get('sales_strategy_json') and not request.regenerate:
+            return {
+                "status": "success",
+                "message": "기존 생성된 판매 전략 반환",
+                "data": review_data['sales_strategy_json'],
+                "regenerated": False
+            }
+
+        # 상품 요약이 없으면 먼저 생성
+        summary = review_data.get('product_summary_json')
+        if not summary:
+            generator = ProductContentGenerator()
+            summary = generator.generate_product_summary(review_data)
+            save_content_to_db(review_id, 'summary', summary)
+
+        # 판매 전략 생성
+        generator = ProductContentGenerator()
+        sales_strategy = generator.generate_sales_strategy(review_data, summary)
+
+        # DB 저장
+        save_content_to_db(review_id, 'sales_strategy', sales_strategy)
+
+        return {
+            "status": "success",
+            "message": "판매 전략 생성 완료",
+            "data": sales_strategy,
+            "regenerated": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"판매 전략 생성 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/review/{review_id}/generate-all")
+async def generate_all_content(review_id: str, request: ContentGenerationRequest):
+    """
+    전체 콘텐츠 한번에 생성 (LLM 우선, 룰 기반 폴백)
+
+    톤 옵션: premium, health, trendy, value, minimal
+    """
+    try:
+        review_data = get_review_data(review_id)
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        tone = request.tone or "premium"
+        review_data['_content_tone'] = tone
+
+        title = review_data.get("source_title", "") or ""
+        category = review_data.get("category", "wellness")
+        generator = ProductContentGenerator()
+
+        # 상품명 유효성 검사 (무효한 경우 이미지로 Vision 분석)
+        def _is_invalid_title(t):
+            if not t or len(t.strip()) < 10:
+                return True
+            bad_keywords = ['按图片搜索', '搜索', '图片', 'search', '登录', '注册', 'unknown product', 'test product']
+            return any(b in t.lower() for b in bad_keywords)
+
+        vision_context = ""
+        if _is_invalid_title(title):
+            logger.warning(f"상품명 무효({title!r}) — 이미지 Vision 분석 시도")
+            try:
+                # ext_images 또는 source_data에서 이미지 URL 추출
+                sd_raw = review_data.get("source_data_json") or "{}"
+                if isinstance(sd_raw, str):
+                    sd = json.loads(sd_raw)
+                else:
+                    sd = sd_raw if isinstance(sd_raw, dict) else {}
+
+                img_urls = sd.get("ext_images") or sd.get("images") or []
+                if img_urls and len(img_urls) > 0:
+                    vision_prompt = f"""이 상품 이미지들을 분석하여 한국 이커머스 판매용 기본 정보를 추출하세요.
+
+다음을 파악하세요:
+1. 실제 상품 종류 (영양제, 화장품, 가전, 의류 등)
+2. 브랜드명 (이미지 라벨/패키지에서 읽을 수 있는 경우)
+3. 주요 성분/특징 (용량, 개수, 기능)
+4. 카테고리
+
+JSON만 응답:
+{{
+  "product_type": "상품 종류",
+  "brand": "브랜드명 또는 미확인",
+  "key_features": ["특징1", "특징2", "특징3"],
+  "category_guess": "카테고리 추정",
+  "suggested_korean_name": "한국어 상품명 제안 (브랜드+제품명+용량)"
+}}"""
+
+                    from llm_router import call_llm_with_images
+                    # 첫 번째 이미지 1장으로 분석 (비용 절약)
+                    vision_raw = call_llm_with_images(
+                        task_type="vision_analysis",
+                        prompt=vision_prompt,
+                        image_urls=img_urls[:1],
+                        max_tokens=800
+                    )
+                    import re as _re
+                    m = _re.search(r'\{[\s\S]*\}', vision_raw or "")
+                    if m:
+                        vision_data = json.loads(m.group())
+                        # 유추한 한국어 이름으로 title 교체
+                        suggested = vision_data.get("suggested_korean_name", "")
+                        if suggested and len(suggested) > 5:
+                            title = suggested
+                            logger.info(f"Vision 분석 결과: {title}")
+                        vision_context = f"\n\n[이미지 Vision 분석 결과]\n- 상품 종류: {vision_data.get('product_type','')}\n- 브랜드: {vision_data.get('brand','')}\n- 특징: {', '.join(vision_data.get('key_features',[]))}\n- 카테고리: {vision_data.get('category_guess','')}"
+            except Exception as vision_err:
+                logger.warning(f"Vision 분석 실패: {vision_err}")
+
+        # ── 1단계: LLM으로 핵심 콘텐츠 일괄 생성 ────────────
+        llm_result = None
+        generation_method = "rule-based"
+
+        try:
+            from llm_router import call_llm
+
+            tone_desc = {
+                "premium": "고급스럽고 세련된 프리미엄 브랜드 톤",
+                "health": "신뢰감 있는 건강/웰니스 전문가 톤",
+                "trendy": "밝고 에너지 넘치는 MZ세대 SNS 톤",
+                "value": "실용적이고 합리적인 가성비 톤",
+                "minimal": "간결하고 깔끔한 미니멀 톤",
+            }.get(tone, "프리미엄 톤")
+
+            prompt = f"""당신은 한국 이커머스(네이버 스마트스토어, 쿠팡) 상품 등록 전문가입니다.
+
+아래 상품의 판매 콘텐츠를 한국어로 생성하세요.
+
+상품명: {title}
+카테고리: {category}
+톤앤매너: {tone_desc}{vision_context}
+
+중요: 상품명이 의미없거나 중국어 검색 UI 텍스트("按图片搜索" 등)인 경우,
+이미지 분석 결과만 사용하여 생성하세요. 절대로 상상해서 만들지 마세요.
+정보가 부족하면 "정보 부족"이라고 표시하세요.
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{{
+  "naver_title": "네이버 스마트스토어용 상품명 (50자 이내, SEO 최적화, [카테고리] 브랜드명 제품명 용량 핵심특징)",
+  "coupang_title": "쿠팡용 상품명 (70자 이내, 핵심 키워드 포함)",
+  "naver_description": "네이버 상세설명 (3~5줄, 핵심 혜택 중심, 마크다운 불가)",
+  "coupang_description": "쿠팡 상세설명 (3~5줄)",
+  "search_tags": ["검색태그1", "검색태그2", ... (10~15개)],
+  "hook_copies": ["훅카피1", "훅카피2", "훅카피3"],
+  "key_benefits": ["혜택1", "혜택2", "혜택3"],
+  "target_audience": "타겟 고객 설명 (1~2문장)",
+  "positioning": "포지셔닝 요약 (1문장)",
+  "ad_points": ["광고 포인트1", "광고 포인트2", "광고 포인트3"],
+  "faq": [{{"q": "질문1", "a": "답변1"}}, {{"q": "질문2", "a": "답변2"}}]
+}}
+
+규칙:
+- 의료 효능/치료/예방 표현 절대 금지
+- "~에 도움이 될 수 있습니다" 같은 완곡 표현 사용
+- 네이버 제목은 반드시 [카테고리키워드] 로 시작
+- JSON만 출력, 다른 텍스트 금지"""
+
+            raw = call_llm(task_type="content_generation", prompt=prompt, max_tokens=2000)
+
+            # JSON 추출
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', raw)
+            if json_match:
+                llm_result = json.loads(json_match.group())
+                generation_method = "llm"
+                logger.info(f"✅ LLM 콘텐츠 생성 성공: {review_id}")
+
+        except Exception as llm_err:
+            logger.warning(f"⚠️ LLM 콘텐츠 생성 실패 ({llm_err}), 룰 기반 폴백")
+
+        # ── 2단계: 결과 조립 ─────────────────────────────
+        if llm_result:
+            summary = {
+                "positioning_summary": llm_result.get("positioning", ""),
+                "usp_points": llm_result.get("key_benefits", []),
+                "target_customer": llm_result.get("target_audience", ""),
+                "usage_scenarios": [],
+                "differentiation_points": llm_result.get("ad_points", []),
+                "search_intent_summary": ", ".join(llm_result.get("search_tags", [])[:5]),
+            }
+            detail_content = {
+                "main_title": llm_result.get("naver_title", title),
+                "hook_copies": llm_result.get("hook_copies", []),
+                "key_benefits": llm_result.get("key_benefits", []),
+                "faq": llm_result.get("faq", []),
+                "naver_body": llm_result.get("naver_description", ""),
+                "coupang_body": llm_result.get("coupang_description", ""),
+                "short_ad_copies": llm_result.get("ad_points", []),
+                "naver_title": llm_result.get("naver_title", ""),
+                "coupang_title": llm_result.get("coupang_title", ""),
+                "search_tags": llm_result.get("search_tags", []),
+            }
+            sales_strategy = {
+                "target_audience": llm_result.get("target_audience", ""),
+                "ad_points": llm_result.get("ad_points", []),
+                "primary_keywords": llm_result.get("search_tags", [])[:7],
+                "secondary_keywords": llm_result.get("search_tags", [])[7:],
+                "hashtags": [f"#{t}" for t in llm_result.get("search_tags", [])[:10]],
+                "review_points": llm_result.get("key_benefits", []),
+                "price_positioning": "",
+                "sales_channels": ["네이버 스마트스토어", "쿠팡"],
+                "competitive_angles": llm_result.get("ad_points", []),
+            }
+        else:
+            # 룰 기반 폴백
+            summary = generator.generate_product_summary(review_data)
+            detail_content = generator.generate_detail_content(review_data, summary)
+            sales_strategy = generator.generate_sales_strategy(review_data, summary)
+
+        save_content_to_db(review_id, 'summary', summary)
+        save_content_to_db(review_id, 'detail', detail_content)
+        save_content_to_db(review_id, 'sales_strategy', sales_strategy)
+
+        # ── 3단계: 이미지 디자인 + 리스크 (항상 룰 기반) ─────
+        image_design = generator.generate_image_design_guide(review_data, summary)
+        save_content_to_db(review_id, 'image_design', image_design)
+
+        all_content = {'summary': summary, 'detail': detail_content, 'image_design': image_design, 'sales_strategy': sales_strategy}
+        risk_assessment = generator.assess_compliance_risks(review_data, all_content)
+        save_content_to_db(review_id, 'risk_assessment', risk_assessment)
+
+        # ── 4단계: generated_* 컬럼 동기화 ──────────────────
+        _sync_generated_columns(review_id, summary, detail_content, sales_strategy)
+
+        return {
+            "status": "success",
+            "message": f"전체 콘텐츠 생성 완료 ({generation_method})",
+            "generation_method": generation_method,
+            "data": {
+                "summary": summary,
+                "detail_content": detail_content,
+                "image_design": image_design,
+                "sales_strategy": sales_strategy,
+                "risk_assessment": risk_assessment
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"전체 콘텐츠 생성 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/review/{review_id}/content")
+async def get_all_content(review_id: str):
+    """
+    생성된 콘텐츠 전체 조회
+    """
+    try:
+        review_data = get_review_data(review_id)
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        return {
+            "status": "success",
+            "review_id": review_id,
+            "data": {
+                "summary": review_data.get('product_summary_json'),
+                "detail_content": review_data.get('detail_content_json'),
+                "image_design": review_data.get('image_design_json'),
+                "sales_strategy": review_data.get('sales_strategy_json'),
+                "risk_assessment": review_data.get('risk_assessment_json'),
+                "generated_at": review_data.get('content_generated_at'),
+                "reviewed_at": review_data.get('content_reviewed_at'),
+                "reviewer": review_data.get('content_reviewer')
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"콘텐츠 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

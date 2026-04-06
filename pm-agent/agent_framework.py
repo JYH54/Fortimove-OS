@@ -107,7 +107,14 @@ class DataResolver:
         resolved = {}
         for tgt_key, src_path in mapping.items():
             if src_path.startswith("literal."):
-                resolved[tgt_key] = src_path[len("literal."):]
+                literal_value = src_path[len("literal."):]
+                # JSON 파싱 시도 (리스트, 딕셔너리, 숫자 등)
+                try:
+                    import json
+                    resolved[tgt_key] = json.loads(literal_value)
+                except:
+                    # 파싱 실패 시 문자열 그대로
+                    resolved[tgt_key] = literal_value
             elif src_path == "user_input.raw_message":
                 resolved[tgt_key] = context.request
             elif src_path.startswith("user_input.structured."):
@@ -131,6 +138,23 @@ class DataResolver:
                         else:
                             raise ValueError(f"Mapping source key missing: {src_path}")
                     resolved[tgt_key] = val
+                elif "." in src_path:
+                    # 간편 문법: "step_id.key" → step_id의 output에서 key 참조
+                    parts = src_path.split(".")
+                    step_id = parts[0]
+                    key_path = parts[1:]
+                    res = context.get_result(step_id)
+                    if res and res.output:
+                        val = res.output
+                        for p in key_path:
+                            if isinstance(val, dict) and p in val:
+                                val = val[p]
+                            else:
+                                val = None
+                                break
+                        resolved[tgt_key] = val
+                    else:
+                        resolved[tgt_key] = None
                 else:
                     raise ValueError(f"Invalid mapping format or unsupported source: {src_path}")
         return resolved
@@ -139,6 +163,26 @@ class BaseAgent(ABC):
     def __init__(self, agent_name: str):
         self.agent_name = agent_name
         self.logger = logging.getLogger(f"agent.{agent_name}")
+        self._check_dependencies()
+
+    def _check_dependencies(self):
+        """
+        Graceful Fail: 필수 의존성 체크
+        - ANTHROPIC_API_KEY 없으면 경고 로그만 출력 (시스템 전체 중단 방지)
+        """
+        import os
+        api_key = os.getenv('ANTHROPIC_API_KEY', '')
+
+        if not api_key or 'PLACEHOLDER' in api_key:
+            self.logger.warning(
+                f"⚠️ [{self.agent_name}] ANTHROPIC_API_KEY가 설정되지 않았거나 플레이스홀더입니다. "
+                f"AI 기능이 제한될 수 있습니다. "
+                f"설정 방법: https://docs.fortimove.com/setup-api-key"
+            )
+            self._api_available = False
+        else:
+            self._api_available = True
+            self.logger.info(f"✅ [{self.agent_name}] API 키 확인됨")
 
     @property
     @abstractmethod
@@ -201,6 +245,25 @@ class AgentRegistry:
     def get(self, agent_name: str) -> Optional[BaseAgent]:
         return self._agents.get(agent_name)
 
+def register_agent(agent_id: str):
+    """
+    Decorator 패턴: 에이전트 클래스에 @register_agent("agent_id")를 추가하면
+    자동으로 AgentRegistry에 등록됨
+
+    사용법:
+        @register_agent("sourcing")
+        class SourcingAgent(BaseAgent):
+            ...
+    """
+    def decorator(cls):
+        # 클래스 정의 시점에 즉시 인스턴스 생성 및 등록
+        registry = AgentRegistry()
+        instance = cls()
+        registry.register(agent_id, instance)
+        logger.info(f"🎯 [@register_agent] {agent_id} 자동 등록 완료 ({cls.__name__})")
+        return cls
+    return decorator
+
 class WorkflowExecutor:
     def __init__(self, registry: Optional[AgentRegistry] = None):
         self.registry = registry or AgentRegistry()
@@ -208,12 +271,25 @@ class WorkflowExecutor:
         self.retry_delay = 1.0
         self.post_execution_hooks: List[Callable] = []
 
+        # Agent Status Tracker 초기화
+        try:
+            from agent_status_tracker import AgentStatusTracker
+            self.agent_tracker = AgentStatusTracker()
+            logger.info("✅ Agent Status Tracker 초기화 완료")
+        except Exception as e:
+            self.agent_tracker = None
+            logger.warning(f"⚠️ Agent Status Tracker 초기화 실패: {e}")
+
     def add_post_execution_hook(self, hook: Callable):
         self.post_execution_hooks.append(hook)
 
     def execute_sequential(self, steps_data: List[Dict[str, Any]], context: ExecutionContext) -> ExecutionContext:
         logger.info(f"🚀 구조화된 워크플로우 엔진 시작: {len(steps_data)}개 단계")
-        
+
+        # Workflow ID 생성
+        workflow_id = f"wf-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        logger.info(f"📋 Workflow ID: {workflow_id}")
+
         # Schema validation for workflow steps
         steps = []
         for step_dict in steps_data:
@@ -288,23 +364,70 @@ class WorkflowExecutor:
             if not checks_passed:
                 break # Soft Stop (or break depending on design; fail fast is safer)
 
-            # 4. Agent 실행
+            # 4. Agent 실행 전 상태 업데이트
+            if self.agent_tracker:
+                try:
+                    self.agent_tracker.update_agent_status(
+                        agent_name=step.agent,
+                        status="running",
+                        current_task=step.step_id,
+                        workflow_id=workflow_id
+                    )
+                except Exception as e:
+                    logger.warning(f"⚠️ Agent status update failed (before): {e}")
+
+            # Agent 실행
             result = self._execute_agent(step.agent, mapped_input)
-            
+
+            # Agent 실행 후 상태 업데이트
+            if self.agent_tracker:
+                try:
+                    final_status = "completed" if result.is_success() else "failed"
+                    self.agent_tracker.update_agent_status(
+                        agent_name=step.agent,
+                        status=final_status,
+                        current_task=None,
+                        workflow_id=workflow_id
+                    )
+                except Exception as e:
+                    logger.warning(f"⚠️ Agent status update failed (after): {e}")
+
             # 5. Post-Execution Hooks (Decoupled integrations like Approval Queue)
             for hook in self.post_execution_hooks:
                 try:
                     hook(step.step_id, step.agent, mapped_input, result, context)
                 except Exception as hook_err:
                     logger.warning(f"⚠️ 훅 실행 오류 ({hook.__name__}): {hook_err}")
-                        
+
             context.add_result(step.step_id, step.agent, result)
-            
+
             if result.is_failure():
                 logger.error(f"❌ Step [{step.step_id}] 실패 → 워크플로우 중단")
                 break
 
-        logger.info(f"\n🏁 워크플로우 실행 종료 - {(datetime.now() - context.start_time).total_seconds():.1f}초")
+        # Workflow 완료 기록
+        duration = (datetime.now() - context.start_time).total_seconds()
+        logger.info(f"\n🏁 워크플로우 실행 종료 - {duration:.1f}초")
+
+        if self.agent_tracker:
+            try:
+                workflow_status = "completed"
+                has_failure = any(r.is_failure() for r in context.results.values() if r)
+                if has_failure:
+                    workflow_status = "failed"
+
+                self.agent_tracker.record_workflow_execution(
+                    workflow_id=workflow_id,
+                    task_type="sequential_workflow",
+                    steps=[{"step_id": s.step_id, "agent": s.agent, "status": context.get_result(s.step_id).status if context.get_result(s.step_id) else "skipped"} for s in steps],
+                    status=workflow_status,
+                    duration_seconds=duration,
+                    error=None if workflow_status == "completed" else "워크플로우 중 일부 단계 실패"
+                )
+                logger.info(f"✅ Workflow 이력 기록 완료: {workflow_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Workflow 이력 기록 실패: {e}")
+
         return context
 
     def _execute_agent(self, agent_name: str, input_data: Dict[str, Any]) -> TaskResult:

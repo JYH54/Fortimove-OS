@@ -1,0 +1,94 @@
+/* PM Agent Review Console - Minimal Styles */
+
+body {
+    font-size: 14px;
+}
+
+.table-sm {
+    font-size: 12px;
+}
+
+.table-sm th, .table-sm td {
+    padding: 0.4rem;
+    vertical-align: middle;
+}
+
+.badge-status {
+    font-size: 11px;
+}
+
+/* Image Review Panel */
+.image-item {
+    position: relative;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+    width: 150px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.image-item:hover {
+    border-color: #0d6efd;
+}
+
+.image-item.primary {
+    border-color: #ffc107;
+    border-width: 3px;
+}
+
+.image-item.excluded {
+    opacity: 0.4;
+    border-color: #dc3545;
+}
+
+.image-item img {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 2px;
+}
+
+.image-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.image-primary-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #ffc107;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.image-order {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+/* Read-only generated content styling */
+.bg-light .form-control[readonly] {
+    border: none;
+    background-color: #f8f9fa !important;
+}
+
+/* Status badges */
+.status-draft { background-color: #6c757d; }
+.status-under_review { background-color: #0d6efd; }
+.status-approved_for_export { background-color: #198754; }
+.status-approved_for_upload { background-color: #20c997; }
+.status-hold { background-color: #ffc107; color: #000; }
+.status-rejected { background-color: #dc3545; }

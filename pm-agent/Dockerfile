@@ -2,15 +2,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 의존성 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev curl fonts-nanum \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# PM 에이전트 코드 복사
-COPY pm_agent.py .
-COPY test_pm.py .
+COPY . .
 
-# 환경 변수 (docker-compose에서 주입)
-ENV ANTHROPIC_API_KEY=""
+RUN mkdir -p /app/fonts /app/data && \
+    cp /usr/share/fonts/truetype/nanum/Nanum* /app/fonts/ 2>/dev/null || true
 
-CMD ["python", "pm_agent.py"]
+EXPOSE 8051
+
+CMD ["uvicorn", "approval_ui_app:app", "--host", "0.0.0.0", "--port", "8051"]

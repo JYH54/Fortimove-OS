@@ -1,0 +1,682 @@
+[
+  {
+    "workflow_id": "wf-20260401-071541",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.320352,
+    "error": null,
+    "created_at": "2026-04-01T07:15:42.206459"
+  },
+  {
+    "workflow_id": "wf-20260401-071513",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.333761,
+    "error": null,
+    "created_at": "2026-04-01T07:15:13.702610"
+  },
+  {
+    "workflow_id": "wf-20260401-071406",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.44453,
+    "error": null,
+    "created_at": "2026-04-01T07:14:07.052125"
+  },
+  {
+    "workflow_id": "wf-20260401-034038",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.345608,
+    "error": null,
+    "created_at": "2026-04-01T03:40:38.856877"
+  },
+  {
+    "workflow_id": "wf-20260401-033941",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.306473,
+    "error": null,
+    "created_at": "2026-04-01T03:39:41.773757"
+  },
+  {
+    "workflow_id": "wf-20260401-033747",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.297535,
+    "error": null,
+    "created_at": "2026-04-01T03:37:47.667822"
+  },
+  {
+    "workflow_id": "wf-20260401-033745",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.280785,
+    "error": null,
+    "created_at": "2026-04-01T03:37:45.327631"
+  },
+  {
+    "workflow_id": "wf-20260401-033742",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.286999,
+    "error": null,
+    "created_at": "2026-04-01T03:37:43.012615"
+  },
+  {
+    "workflow_id": "wf-20260401-033740",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.253326,
+    "error": null,
+    "created_at": "2026-04-01T03:37:40.698897"
+  },
+  {
+    "workflow_id": "wf-20260401-033738",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.245904,
+    "error": null,
+    "created_at": "2026-04-01T03:37:38.414197"
+  },
+  {
+    "workflow_id": "wf-20260401-033735",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.245111,
+    "error": null,
+    "created_at": "2026-04-01T03:37:36.137704"
+  },
+  {
+    "workflow_id": "wf-20260401-033733",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.284267,
+    "error": null,
+    "created_at": "2026-04-01T03:37:33.862296"
+  },
+  {
+    "workflow_id": "wf-20260401-033731",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.252222,
+    "error": null,
+    "created_at": "2026-04-01T03:37:31.550551"
+  },
+  {
+    "workflow_id": "wf-20260401-033729",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.250284,
+    "error": null,
+    "created_at": "2026-04-01T03:37:29.267670"
+  },
+  {
+    "workflow_id": "wf-20260401-033726",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.284432,
+    "error": null,
+    "created_at": "2026-04-01T03:37:27.019663"
+  },
+  {
+    "workflow_id": "wf-20260401-033724",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.268357,
+    "error": null,
+    "created_at": "2026-04-01T03:37:24.704911"
+  },
+  {
+    "workflow_id": "wf-20260401-033722",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.260063,
+    "error": null,
+    "created_at": "2026-04-01T03:37:22.410238"
+  },
+  {
+    "workflow_id": "wf-20260401-033719",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.259314,
+    "error": null,
+    "created_at": "2026-04-01T03:37:20.123778"
+  },
+  {
+    "workflow_id": "wf-20260401-033717",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.268805,
+    "error": null,
+    "created_at": "2026-04-01T03:37:17.836905"
+  },
+  {
+    "workflow_id": "wf-20260401-033715",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.299728,
+    "error": null,
+    "created_at": "2026-04-01T03:37:15.525413"
+  },
+  {
+    "workflow_id": "wf-20260401-033712",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.274803,
+    "error": null,
+    "created_at": "2026-04-01T03:37:13.192020"
+  },
+  {
+    "workflow_id": "wf-20260401-033710",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.235668,
+    "error": null,
+    "created_at": "2026-04-01T03:37:10.886627"
+  },
+  {
+    "workflow_id": "wf-20260401-033708",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.277406,
+    "error": null,
+    "created_at": "2026-04-01T03:37:08.604114"
+  },
+  {
+    "workflow_id": "wf-20260401-033706",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.274281,
+    "error": null,
+    "created_at": "2026-04-01T03:37:06.298953"
+  },
+  {
+    "workflow_id": "wf-20260401-033703",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.247151,
+    "error": null,
+    "created_at": "2026-04-01T03:37:03.994163"
+  },
+  {
+    "workflow_id": "wf-20260401-033701",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.249578,
+    "error": null,
+    "created_at": "2026-04-01T03:37:01.719818"
+  },
+  {
+    "workflow_id": "wf-20260401-033659",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.24878,
+    "error": null,
+    "created_at": "2026-04-01T03:36:59.439835"
+  },
+  {
+    "workflow_id": "wf-20260401-033657",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.323445,
+    "error": null,
+    "created_at": "2026-04-01T03:36:57.404741"
+  },
+  {
+    "workflow_id": "wf-20260401-033654",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.250101,
+    "error": null,
+    "created_at": "2026-04-01T03:36:55.053436"
+  },
+  {
+    "workflow_id": "wf-20260401-033652",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.247327,
+    "error": null,
+    "created_at": "2026-04-01T03:36:52.771786"
+  },
+  {
+    "workflow_id": "wf-20260401-033650",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.303074,
+    "error": null,
+    "created_at": "2026-04-01T03:36:50.492273"
+  },
+  {
+    "workflow_id": "wf-20260401-033647",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.401462,
+    "error": null,
+    "created_at": "2026-04-01T03:36:48.158307"
+  },
+  {
+    "workflow_id": "wf-20260401-033645",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.399045,
+    "error": null,
+    "created_at": "2026-04-01T03:36:45.716939"
+  },
+  {
+    "workflow_id": "wf-20260401-020258",
+    "task_type": "sequential_workflow",
+    "status": "completed",
+    "steps": [
+      {
+        "step_id": "sourcing",
+        "agent": "sourcing",
+        "status": "completed"
+      },
+      {
+        "step_id": "margin",
+        "agent": "margin_check",
+        "status": "completed"
+      }
+    ],
+    "duration_seconds": 0.002388,
+    "error": null,
+    "created_at": "2026-04-01T02:02:58.802650"
+  }
+]

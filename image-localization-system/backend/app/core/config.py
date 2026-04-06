@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 
     # OCR 설정
     OCR_ENGINE: str = "easyocr"  # tesseract, easyocr, google_vision
-    OCR_LANGUAGES: list[str] = ["ch_sim", "ch_tra", "en"]
+    OCR_LANGUAGES: list[str] = ["ch_sim", "en"]  # ch_tra는 en과만 호환됨
     OCR_CONFIDENCE_THRESHOLD: float = 0.6
 
     # AI 번역 설정

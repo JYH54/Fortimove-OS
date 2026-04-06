@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>에이전트 센터 - FORTIMOVE GLOBAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#c9d1d9; --brand:#e94560; --blue:#58a6ff; --green:#3fb950; --yellow:#d29922; --red:#da3633; --purple:#8957e5; --cyan:#39d2c0; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); color:var(--text); font-family:'Noto Sans KR',sans-serif; }
+        .top-nav { background:#1a1a2e; height:48px; display:flex; align-items:center; padding:0 24px; gap:8px; }
+        .top-nav a { color:#8b949e; text-decoration:none; padding:6px 12px; border-radius:6px; font-size:13px; }
+        .top-nav a:hover { color:#fff; background:rgba(255,255,255,.08); }
+        .top-nav a.active { color:var(--blue); background:rgba(88,166,255,.1); }
+        .top-nav .brand { color:var(--brand); font-weight:900; font-size:1.1rem; margin-right:16px; }
+        .container { max-width:1400px; margin:0 auto; padding:20px 24px; }
+
+        /* KPI */
+        .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+        .kpi { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; text-align:center; }
+        .kpi .num { font-size:2rem; font-weight:900; }
+        .kpi .label { font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:0.5px; }
+
+        /* 그룹 */
+        .group-title { font-size:13px; font-weight:700; color:#8b949e; text-transform:uppercase; letter-spacing:2px; margin:24px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+        .agent-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:12px; margin-bottom:16px; }
+
+        /* 에이전트 카드 */
+        .agent-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; transition:all .2s; position:relative; overflow:hidden; }
+        .agent-card:hover { border-color:var(--blue); box-shadow:0 4px 16px rgba(0,0,0,.2); }
+        .agent-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+        .agent-card.group-ops::before { background:var(--green); }
+        .agent-card.group-intel::before { background:var(--blue); }
+        .agent-card.group-support::before { background:var(--purple); }
+
+        .ac-header { display:flex; justify-content:space-between; align-items:start; margin-bottom:10px; }
+        .ac-name { font-size:15px; font-weight:800; color:#fff; }
+        .ac-id { font-size:10px; color:#8b949e; }
+        .ac-status { font-size:11px; font-weight:700; padding:2px 8px; border-radius:4px; }
+        .st-ok { background:rgba(63,185,80,.15); color:var(--green); }
+        .st-run { background:rgba(210,153,34,.15); color:var(--yellow); }
+        .st-err { background:rgba(218,54,51,.15); color:var(--red); }
+        .st-new { background:rgba(137,87,229,.15); color:var(--purple); }
+
+        .ac-desc { font-size:12px; color:#8b949e; line-height:1.5; margin-bottom:12px; min-height:36px; }
+        .ac-stats { display:flex; gap:16px; font-size:11px; color:#8b949e; margin-bottom:10px; }
+        .ac-stats .stat-val { font-weight:800; color:var(--text); }
+
+        /* 성공률 바 */
+        .progress-bar-bg { height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+        .progress-bar-fill { height:100%; border-radius:2px; }
+
+        .ac-actions { display:flex; gap:6px; margin-top:10px; }
+        .ac-btn { flex:1; padding:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); border-radius:6px; cursor:pointer; font-size:11px; text-align:center; transition:all .15s; }
+        .ac-btn:hover { border-color:var(--blue); color:var(--blue); }
+        .ac-result { display:none; margin-top:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; font-size:11px; max-height:200px; overflow-y:auto; }
+        .ac-result.show { display:block; }
+        .ac-result pre { white-space:pre-wrap; font-family:inherit; margin:0; color:var(--text); }
+
+        @media(max-width:768px) { .kpi-row { grid-template-columns:repeat(2,1fr); } .agent-grid { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <a class="brand" href="/">FORTIMOVE GLOBAL</a>
+        <a href="/workbench">워크벤치</a>
+        <a href="/">홈</a>
+        <a href="/coo">COO 브리핑</a>
+        <a href="/review/list">리뷰</a>
+        <a href="/redesign/queue">상세페이지</a>
+        <a href="/agents" class="active">에이전트</a>
+        <a href="/bi">BI & FinOps</a>
+        <div style="flex:1;"></div>
+        <button onclick="loadAll()" style="background:var(--border);border:none;color:var(--text);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;">새로고침</button>
+    </nav>
+
+    <div class="container">
+        <!-- KPI -->
+        <div class="kpi-row">
+            <div class="kpi"><div class="num" id="kTotal" style="color:var(--blue);">-</div><div class="label">총 에이전트</div></div>
+            <div class="kpi"><div class="num" id="kRuns" style="color:var(--green);">-</div><div class="label">총 실행</div></div>
+            <div class="kpi"><div class="num" id="kSuccess" style="color:var(--cyan);">-</div><div class="label">성공</div></div>
+            <div class="kpi"><div class="num" id="kFail" style="color:var(--red);">-</div><div class="label">실패</div></div>
+        </div>
+
+        <!-- 운영 에이전트 -->
+        <div class="group-title">운영 에이전트 — 소싱부터 등록까지</div>
+        <div class="agent-grid" id="groupOps"></div>
+
+        <!-- 분석/인텔리전스 에이전트 -->
+        <div class="group-title">분석 & 인텔리전스</div>
+        <div class="agent-grid" id="groupIntel"></div>
+
+        <!-- 지원 에이전트 -->
+        <div class="group-title">지원 & 자동화</div>
+        <div class="agent-grid" id="groupSupport"></div>
+    </div>
+
+<script>
+const AGENTS = {
+    // ── 운영 ──
+    sourcing:             { group:'ops', name:'소싱 에이전트', desc:'상품 URL을 분석하여 수입 가능 여부, 리스크(지재권/의료기기/표시광고), 법률 컴플라이언스를 자동 판단합니다.', api:'/api/agents/execute', runs:true },
+    margin_check:         { group:'ops', name:'마진 검수 에이전트', desc:'4개국(미국/중국/일본/영국) 소싱가에서 물류비, 관세, 포장비를 계산하고 최종 판매가와 마진율을 산출합니다.', api:'/api/agents/execute', runs:true },
+    product_registration: { group:'ops', name:'상품 등록 에이전트', desc:'원본 상품명을 한국어로 변환하고, 옵션/카테고리를 정규화하여 스마트스토어/쿠팡 등록 데이터를 준비합니다.', api:'/api/agents/execute', runs:true },
+    content:              { group:'ops', name:'콘텐츠 에이전트', desc:'네이버/쿠팡 채널별 상품 제목, 상세 설명, 검색 태그, 광고 카피를 AI로 생성합니다.', api:'/api/agents/execute', runs:true },
+    image_localization:   { group:'ops', name:'이미지 현지화 에이전트', desc:'상품 이미지의 중국어/영어 텍스트를 OCR로 감지하고, 한국어로 번역 및 리스크 요소를 자동 제거합니다.', api:null, runs:true, extUrl:'http://localhost:8000' },
+    pricing:              { group:'ops', name:'가격 전략 에이전트', desc:'카테고리별 큐레이션 마진(1.3~1.5배), 규제 리스크 비용을 반영한 프리미엄 가격 전략을 수립합니다.', api:'/api/agents/execute', runs:true },
+
+    // ── 분석/인텔리전스 ──
+    keyword_research:     { group:'intel', name:'키워드 리서치', desc:'네이버/쿠팡 검색 키워드 분석 — 메인키워드, 서브키워드, 롱테일, 경쟁강도, 시즌성을 자동 분석합니다.', api:'/api/bi/agents/keyword-research', runs:false, isNew:true },
+    price_monitor:        { group:'intel', name:'가격 모니터링', desc:'같은 상품의 시장 판매가 범위를 분석하고, 공격적/표준/프리미엄 3단계 가격을 추천합니다.', api:'/api/bi/agents/price-monitor', runs:false, isNew:true },
+    review_analysis:      { group:'intel', name:'리뷰 분석', desc:'경쟁 상품 리뷰 패턴에서 고객 칭찬/불만/구매동기를 추출하여 상세페이지 차별화 포인트를 찾습니다.', api:'/api/bi/agents/review-analysis', runs:false, isNew:true },
+    forex_tariff:         { group:'intel', name:'환율/관세 모니터링', desc:'4개국 환율 변동이 각 상품 마진에 미치는 영향을 시뮬레이션하고, 고위험 상품을 알림합니다.', api:'/api/bi/agents/forex-tariff', runs:false, isNew:true },
+
+    // ── 지원 ──
+    daily_scout_status:   { group:'support', name:'Daily Scout', desc:'매일 4개국(미국/일본/중국/영국) 트렌드 상품을 자동 스캔하고 위닝 후보를 수집합니다.', api:null, runs:true, extUrl:'http://localhost:8050' },
+    cs:                   { group:'support', name:'CS 에이전트', desc:'고객 문의 유형(배송지연/환불/교환/일반)을 분류하고, 안전한 답변 템플릿을 자동 생성합니다.', api:'/api/bi/cs/generate', runs:true },
+    inventory:            { group:'support', name:'재고/발주 관리', desc:'판매 속도를 분석하여 재발주 시점을 알리고, 품절 위험 상품을 사전 감지합니다.', api:'/api/bi/agents/inventory', runs:false, isNew:true },
+    content_scheduler:    { group:'support', name:'콘텐츠 스케줄러', desc:'승인된 상품들로 인스타/블로그/페이스북 14일간 콘텐츠 캘린더를 자동 생성합니다.', api:'/api/bi/agents/content-schedule', runs:false, isNew:true },
+};
+
+let agentStatus = {};
+
+async function loadAll() {
+    // 기존 에이전트 상태 로드
+    try {
+        const res = await fetch('/api/agents/status');
+        const raw = await res.json();
+        agentStatus = raw.agents || raw;
+    } catch(e) { agentStatus = {}; }
+
+    // 통계 로드
+    try {
+        const res = await fetch('/api/agents/statistics');
+        const d = await res.json();
+        document.getElementById('kTotal').textContent = Object.keys(AGENTS).length;
+        document.getElementById('kRuns').textContent = d.total_workflows || 0;
+        document.getElementById('kSuccess').textContent = d.completed_workflows || 0;
+        document.getElementById('kFail').textContent = d.failed_workflows || 0;
+    } catch(e) {
+        document.getElementById('kTotal').textContent = Object.keys(AGENTS).length;
+    }
+
+    renderAgents();
+}
+
+function renderAgents() {
+    const groups = { ops: [], intel: [], support: [] };
+
+    for (const [id, agent] of Object.entries(AGENTS)) {
+        const st = agentStatus[id] || {};
+        const total = st.total_executions || 0;
+        const ok = st.success_count || 0;
+        const fail = st.failure_count || 0;
+        const rate = total > 0 ? Math.round(ok / total * 100) : 0;
+        const lastRun = st.last_updated ? st.last_updated.substring(0, 16).replace('T', ' ') : '없음';
+
+        let statusLabel, statusClass;
+        if (agent.isNew) { statusLabel = '신규'; statusClass = 'st-new'; }
+        else if (total === 0) { statusLabel = '대기'; statusClass = 'st-run'; }
+        else if (fail > 0 && ok === 0) { statusLabel = '오류'; statusClass = 'st-err'; }
+        else { statusLabel = '정상'; statusClass = 'st-ok'; }
+
+        const barColor = rate >= 90 ? 'var(--green)' : rate >= 50 ? 'var(--yellow)' : rate > 0 ? 'var(--red)' : 'var(--border)';
+
+        const card = `
+        <div class="agent-card group-${agent.group}">
+            <div class="ac-header">
+                <div>
+                    <div class="ac-name">${agent.name}</div>
+                    <div class="ac-id">${id}</div>
+                </div>
+                <span class="ac-status ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="ac-desc">${agent.desc}</div>
+            <div class="ac-stats">
+                <span>실행 <span class="stat-val">${total}</span></span>
+                <span>성공 <span class="stat-val" style="color:var(--green);">${ok}</span></span>
+                <span>실패 <span class="stat-val" style="color:${fail>0?'var(--red)':'var(--text)'};">${fail}</span></span>
+                <span>마지막 <span class="stat-val">${lastRun}</span></span>
+            </div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${total>0?rate:0}%;background:${barColor};"></div></div>
+            <div class="ac-result" id="result-${id}"><pre></pre></div>
+        </div>`;
+
+        groups[agent.group].push(card);
+    }
+
+    document.getElementById('groupOps').innerHTML = groups.ops.join('');
+    document.getElementById('groupIntel').innerHTML = groups.intel.join('');
+    document.getElementById('groupSupport').innerHTML = groups.support.join('');
+}
+
+loadAll();
+setInterval(loadAll, 15000);
+</script>
+</body>
+</html>

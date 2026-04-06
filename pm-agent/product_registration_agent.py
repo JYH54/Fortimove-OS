@@ -58,8 +58,17 @@ class ProductRegistrationAgent(BaseAgent):
         else:
             self.client = None
             logger.warning("Product Registration Agent initiated without API KEY.")
-            
-        self.model = "claude-3-5-sonnet-20241022"
+
+        self.model = "claude-sonnet-4-20250514"
+
+        # Korean Law MCP 설정
+        self.law_oc = os.getenv("LAW_OC")
+        self.law_mcp_path = os.path.expanduser("~/korean-law-mcp")
+        self.law_mcp_enabled = bool(self.law_oc) and os.path.exists(os.path.join(self.law_mcp_path, "build/index.js"))
+        if self.law_mcp_enabled:
+            logger.info("✅ Korean Law MCP 활성화됨")
+        else:
+            logger.warning("⚠️ Korean Law MCP 비활성화 (LAW_OC 미설정 또는 설치 안됨)")
 
     def _do_execute(self, input_model: ProductRegistrationInputSchema) -> Dict[str, Any]:
         # 1. First-Pass Rules: Garbage Title & Basic Struct
@@ -173,17 +182,95 @@ class ProductRegistrationAgent(BaseAgent):
         return False, None
 
     def _check_sensitive_category(self, text: str) -> (bool, str):
-        # 반려동물 건강 관련성, 영양제, 의료기기 맥락 등을 간단히 체크. 강아지/고양이 단독으로는 안 잡히도록 '건강/영양'과 조합 검사하거나 강력한 단독어 검사.
+        """민감 카테고리 검증 - Korean Law MCP 우선 사용, fallback은 키워드 기반"""
+        # Korean Law MCP를 사용한 실제 법령 검증 시도
+        if self.law_mcp_enabled:
+            try:
+                is_violation, legal_reason = self._check_legal_compliance(text)
+                if is_violation:
+                    return True, legal_reason
+            except Exception as e:
+                logger.warning(f"⚠️ Korean Law MCP 호출 실패, fallback to keywords: {e}")
+
+        # Fallback: 기존 키워드 기반 검증
         strong_keywords = ["영양제", "비타민", "의료기기", "관절약", "치료기", "수제간식", "건강기능식품"]
         for kw in strong_keywords:
             if kw in text:
                 return True, f"민감 카테고리 직결 키워드({kw}) 발견"
-                
+
         pet_words = ["강아지", "고양이", "반려동물", "펫"]
         health_words = ["관절", "건강", "면역", "염증", "피부"]
         if any(p in text for p in pet_words) and any(h in text for h in health_words):
             return True, "반려동물 건강 관련 복합 텍스트 감지"
-            
+
+        return False, ""
+
+    def _check_legal_compliance(self, text: str) -> (bool, str):
+        """Korean Law MCP를 통한 실제 법령 검증
+
+        Returns:
+            (is_violation: bool, reason: str)
+        """
+        import subprocess
+
+        # 1. 건강기능식품법 검색
+        try:
+            result = subprocess.run(
+                ['node', f'{self.law_mcp_path}/build/index.js', 'search', '--query', f'건강기능식품 표시광고 {text[:100]}'],
+                env={**os.environ, 'LAW_OC': self.law_oc},
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode == 0 and result.stdout:
+                # 출력 파싱 (간단한 문자열 체크)
+                if '조문' in result.stdout or '법률' in result.stdout:
+                    law_count = result.stdout.count('조')
+                    if law_count > 0:
+                        return True, f"건강기능식품법 관련 법령 발견 (약 {law_count}개 조문), 담당자 검수 필요"
+
+        except subprocess.TimeoutExpired:
+            logger.warning("⏱️ Korean Law MCP 건강기능식품법 검색 timeout")
+        except Exception as e:
+            logger.error(f"❌ Korean Law MCP 건강기능식품법 검색 실패: {e}")
+
+        # 2. 의료기기법 검색
+        try:
+            result2 = subprocess.run(
+                ['node', f'{self.law_mcp_path}/build/index.js', 'search', '--query', f'의료기기 광고 {text[:100]}'],
+                env={**os.environ, 'LAW_OC': self.law_oc},
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result2.returncode == 0 and result2.stdout:
+                if '조문' in result2.stdout or '법률' in result2.stdout:
+                    return True, "의료기기법 관련 법령 발견, 허가 번호 필요"
+
+        except subprocess.TimeoutExpired:
+            logger.warning("⏱️ Korean Law MCP 의료기기법 검색 timeout")
+        except Exception as e:
+            logger.error(f"❌ Korean Law MCP 의료기기법 검색 실패: {e}")
+
+        # 3. 표시광고법 위반 검색 (과대광고)
+        if any(word in text for word in ["최고", "1위", "세계", "효과", "개선", "완화"]):
+            try:
+                result3 = subprocess.run(
+                    ['node', f'{self.law_mcp_path}/build/index.js', 'search', '--query', '표시광고 과대광고 금지'],
+                    env={**os.environ, 'LAW_OC': self.law_oc},
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                if result3.returncode == 0 and '조문' in result3.stdout:
+                    return True, "표시광고법 위반 가능성 (과대광고 금지 조항 적용)"
+
+            except Exception:
+                pass
+
         return False, ""
 
     def _check_risky_wording(self, generated_text: str) -> (bool, str):

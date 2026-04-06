@@ -25,7 +25,7 @@ class PMAgent:
             self.client = None
             logger.warning("PMAgent initiated without ANTHROPIC_API_KEY - tests will fail if PM execute_workflow is triggered.")
             
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-sonnet-4-20250514"
 
         self.system_prompt = """당신은 Fortimove Global의 수석 기획자(PM)입니다.
 Phase 4 Workflow Engine 규격에 의거하여, 사용자의 지시를 정확하고 구조적인 JSON 워크플로우로 분해하십시오.
@@ -113,11 +113,22 @@ Phase 4 Workflow Engine 규격에 의거하여, 사용자의 지시를 정확하
             else:
                 json_str = content.strip()
 
+            # JSON 파싱 먼저 수행
+            try:
+                result = json.loads(json_str)
+            except json.JSONDecodeError as parse_err:
+                logger.error(f"❌ PM 출력 JSON 파싱 실패: {parse_err}")
+                return {
+                    "task_type": "error",
+                    "summary": f"JSON Parse Error: {str(parse_err)}",
+                    "workflow": []
+                }
+
+            # 스키마 검증
             from agent_framework import WorkflowDefinition
             try:
-                # Top-level PM output validation
                 validated = WorkflowDefinition(**result)
-                logger.info(f"✅ PM 분석 및 스키마 검증 완벽 통과 단계수: {len(validated.workflow)}개")
+                logger.info(f"✅ PM 분석 및 스키마 검증 완벽 통과: {len(validated.workflow)}개 단계")
                 return validated.model_dump()
             except Exception as schema_e:
                 logger.error(f"❌ PM 출력 스키마 검증 실패: {schema_e}")

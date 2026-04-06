@@ -1,0 +1,27 @@
+# Daily Wellness Scout - Python Dependencies
+
+# Core Framework
+anthropic==0.40.0              # Claude AI API
+schedule==1.2.0                # 작업 스케줄링
+aiohttp==3.9.1                 # 비동기 HTTP 클라이언트
+aiosqlite==0.19.0              # 비동기 SQLite
+requests==2.31.0               # HTTP 클라이언트
+
+# Database
+asyncpg==0.29.0                # 비동기 PostgreSQL 드라이버
+psycopg2-binary==2.9.9         # PostgreSQL 동기 드라이버
+
+# Data Processing
+beautifulsoup4==4.12.2         # HTML 파싱
+lxml==5.1.0                    # XML/HTML 처리
+html5lib==1.1                  # HTML5 파서
+fake-useragent==1.4.0          # 랜덤 User-Agent 생성
+playwright==1.41.0             # 헤드리스 브라우저 (강성 사이트용)
+
+# Email & Notifications
+aiosmtplib==3.0.1              # 비동기 SMTP 클라이언트
+python-dotenv==1.0.0           # 환경 변수 관리
+
+# Utilities
+python-dateutil==2.8.2         # 날짜/시간 처리
+pytz==2023.3                   # 시간대 처리

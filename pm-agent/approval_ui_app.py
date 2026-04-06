@@ -4,16 +4,59 @@ from pydantic import BaseModel
 from typing import Optional, List
 import csv
 import io
+import os
+from pathlib import Path
+
+# Load environment variables from .env file manually
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                os.environ.setdefault(key, value)
 
 from datetime import datetime
 from approval_queue import ApprovalQueueManager
 from handoff_service import HandoffService
+from agent_status_tracker import AgentStatusTracker
 
 from fastapi.security import APIKeyHeader
 from fastapi import Security, Depends
 
-app = FastAPI(title="Fortimove Approval UI MVP")
+app = FastAPI(title="Fortimove PM Agent Dashboard")
+
+# CORS — 브라우저 확장 프로그램 지원
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*", "chrome-extension://*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 handoff_service = HandoffService()
+
+# 에이전트를 먼저 등록 (agent_tracker 초기화 전에 실행)
+from real_agents import register_real_agents
+from cs_agent import register_cs_agent
+from product_registration_agent import register_product_registration_agent
+
+registry = register_real_agents()
+register_cs_agent(registry)
+register_product_registration_agent(registry)
+
+# 이제 agent_tracker 초기화 (AgentRegistry에서 에이전트 목록 가져옴)
+agent_tracker = AgentStatusTracker()
+
+# API Execution Router 추가
+from api_execution import router as execution_router
+app.include_router(execution_router)
+
+# Phase 3 Dashboard APIs 추가
+from phase3_dashboard_apis import router as phase3_router
+app.include_router(phase3_router)
 
 API_KEY_NAME = "X-API-TOKEN"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
@@ -44,6 +87,249 @@ class ReviewUpdateRequest(BaseModel):
 # Dependency injection for easy testing/overriding
 def get_aq() -> ApprovalQueueManager:
     return ApprovalQueueManager()
+
+@app.get("/api/workbench/throughput")
+def workbench_throughput():
+    """A4 — 워크벤치 오늘 처리량 카운터
+    - 오늘/어제 분석 시작(created_at), 승인 완료(updated_at + reviewer_status='approved')
+    - 지난 7일 일평균 + 일별 sparkline
+    """
+    import sqlite3, os
+    from datetime import datetime, timedelta, timezone
+    db = os.getenv("APPROVAL_DB_PATH", "data/approval_queue.db")
+    # KST (UTC+9) — created_at은 서버 로컬 시간으로 저장되어 있으므로 date substring 사용
+    today = datetime.now().date().isoformat()
+    yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
+    week_start = (datetime.now().date() - timedelta(days=6)).isoformat()
+
+    try:
+        with sqlite3.connect(db) as conn:
+            def q(sql, *params):
+                r = conn.execute(sql, params).fetchone()
+                return r[0] if r else 0
+
+            # 오늘 분석 시작 (created)
+            started_today = q(
+                "SELECT COUNT(*) FROM approval_queue WHERE substr(created_at,1,10) = ?", today
+            )
+            started_yesterday = q(
+                "SELECT COUNT(*) FROM approval_queue WHERE substr(created_at,1,10) = ?", yesterday
+            )
+            # 오늘 처리 완료 (결정된 것: approved + rejected + needs_edit)
+            decided_today = q(
+                "SELECT COUNT(*) FROM approval_queue WHERE substr(updated_at,1,10) = ? AND reviewer_status != 'pending'",
+                today,
+            )
+            decided_yesterday = q(
+                "SELECT COUNT(*) FROM approval_queue WHERE substr(updated_at,1,10) = ? AND reviewer_status != 'pending'",
+                yesterday,
+            )
+            # 대기중
+            pending_total = q("SELECT COUNT(*) FROM approval_queue WHERE reviewer_status = 'pending'")
+            # 7일 일별 sparkline (분석 시작 기준)
+            rows = conn.execute(
+                """SELECT substr(created_at,1,10) as d, COUNT(*) as c
+                   FROM approval_queue
+                   WHERE substr(created_at,1,10) >= ?
+                   GROUP BY d ORDER BY d""",
+                (week_start,),
+            ).fetchall()
+            day_map = {r[0]: r[1] for r in rows}
+            # 7일 배열 채우기
+            spark = []
+            week_total = 0
+            for i in range(6, -1, -1):
+                d = (datetime.now().date() - timedelta(days=i)).isoformat()
+                c = day_map.get(d, 0)
+                spark.append({"date": d, "count": c})
+                week_total += c
+            week_avg = round(week_total / 7, 1)
+
+            # A1: 스텝별 평균 소요시간 (최근 14일) — 병목 가시화
+            # Step1→2 = created_at → content_generated_at (분석·콘텐츠 생성)
+            # Step2→3 = content_generated_at → content_reviewed_at (편집·검수)
+            # Step3→결정 = content_reviewed_at → approved_at OR updated_at (승인 결정)
+            two_weeks_ago = (datetime.now().date() - timedelta(days=14)).isoformat()
+            timing_rows = conn.execute(
+                """SELECT created_at, content_generated_at, content_reviewed_at,
+                          approved_at, updated_at, reviewer_status
+                   FROM approval_queue
+                   WHERE substr(created_at,1,10) >= ?""",
+                (two_weeks_ago,),
+            ).fetchall()
+
+            def _parse(s):
+                if not s:
+                    return None
+                try:
+                    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+                except Exception:
+                    return None
+
+            analysis_secs, edit_secs, decide_secs = [], [], []
+            for row in timing_rows:
+                c, g, r, a, u, st = row
+                cdt, gdt, rdt, adt, udt = _parse(c), _parse(g), _parse(r), _parse(a), _parse(u)
+                if cdt and gdt and gdt > cdt:
+                    analysis_secs.append((gdt - cdt).total_seconds())
+                if gdt and rdt and rdt > gdt:
+                    edit_secs.append((rdt - gdt).total_seconds())
+                # 결정 시각: approved_at 우선, 없으면 updated_at (단, pending은 제외)
+                dec_dt = adt or (udt if st != "pending" else None)
+                if rdt and dec_dt and dec_dt > rdt:
+                    decide_secs.append((dec_dt - rdt).total_seconds())
+
+            def _stats(arr):
+                if not arr:
+                    return {"avg": 0, "median": 0, "n": 0}
+                arr_sorted = sorted(arr)
+                mid = len(arr_sorted) // 2
+                median = (
+                    arr_sorted[mid]
+                    if len(arr_sorted) % 2 == 1
+                    else (arr_sorted[mid - 1] + arr_sorted[mid]) / 2
+                )
+                return {
+                    "avg": round(sum(arr) / len(arr)),
+                    "median": round(median),
+                    "n": len(arr),
+                }
+
+            stages = {
+                "analysis": _stats(analysis_secs),
+                "edit": _stats(edit_secs),
+                "decide": _stats(decide_secs),
+            }
+            # 병목 식별
+            bottleneck = max(stages.items(), key=lambda kv: kv[1]["avg"])[0] if any(
+                s["n"] > 0 for s in stages.values()
+            ) else None
+
+        # 델타 계산
+        started_delta = started_today - started_yesterday
+        decided_delta = decided_today - decided_yesterday
+
+        return {
+            "today": {
+                "started": started_today,
+                "decided": decided_today,
+                "pending": pending_total,
+            },
+            "yesterday": {
+                "started": started_yesterday,
+                "decided": decided_yesterday,
+            },
+            "delta": {
+                "started": started_delta,
+                "decided": decided_delta,
+            },
+            "week": {
+                "avg_per_day": week_avg,
+                "total": week_total,
+                "sparkline": spark,
+            },
+            "stages": stages,
+            "bottleneck": bottleneck,
+        }
+    except Exception as e:
+        logger.exception("throughput API 실패")
+        return {
+            "today": {"started": 0, "decided": 0, "pending": 0},
+            "yesterday": {"started": 0, "decided": 0},
+            "delta": {"started": 0, "decided": 0},
+            "week": {"avg_per_day": 0, "total": 0, "sparkline": []},
+            "stages": {"analysis": {"avg":0,"median":0,"n":0}, "edit": {"avg":0,"median":0,"n":0}, "decide": {"avg":0,"median":0,"n":0}},
+            "bottleneck": None,
+            "error": str(e),
+        }
+
+
+@app.post("/api/images/quality-check")
+async def image_quality_check_endpoint(payload: dict):
+    """B3: 이미지 품질 체크 (URL 또는 base64)
+    payload: { "url": "...", "require_white_bg": true }
+           | { "urls": [...], "require_white_bg": false }
+    """
+    from image_quality_checker import (
+        check_image_quality, check_image_url, check_image_urls_batch
+    )
+    require_white_bg = bool(payload.get("require_white_bg", False))
+
+    # 배치 요청
+    if "urls" in payload and isinstance(payload["urls"], list):
+        return await check_image_urls_batch(
+            payload["urls"], require_white_bg=require_white_bg
+        )
+
+    # 단일 URL
+    if "url" in payload:
+        return await check_image_url(payload["url"], require_white_bg=require_white_bg)
+
+    # base64
+    if "image_base64" in payload:
+        import base64
+        try:
+            data = base64.b64decode(payload["image_base64"])
+            return check_image_quality(data, require_white_bg=require_white_bg)
+        except Exception as e:
+            return {"error": f"base64 디코딩 실패: {e}", "score": 0}
+
+    return {"error": "url/urls/image_base64 중 하나 필요"}
+
+
+@app.get("/api/stats")
+def get_queue_stats(aq: ApprovalQueueManager = Depends(get_aq)):
+    """Queue 상태별 통계 조회 (인증 불필요 - 공개 API)"""
+    try:
+        stats = {
+            "pending": len(aq.list_items("pending")),
+            "approved": len(aq.list_items("approved")),
+            "needs_edit": len(aq.list_items("needs_edit")),
+            "rejected": len(aq.list_items("rejected"))
+        }
+        stats["total"] = sum(stats.values())
+        return stats
+    except Exception as e:
+        # 에러 시에도 0으로 반환 (UI 깨지지 않도록)
+        return {
+            "pending": 0,
+            "approved": 0,
+            "needs_edit": 0,
+            "rejected": 0,
+            "total": 0
+        }
+
+# Agent Status API Endpoints (공개 API - 인증 불필요)
+@app.get("/api/agents/status")
+def get_all_agents_status():
+    """모든 에이전트의 실시간 상태 조회"""
+    return agent_tracker.get_all_agent_status()
+
+@app.get("/api/agents/status/{agent_name}")
+def get_agent_status(agent_name: str):
+    """특정 에이전트 상태 조회"""
+    status = agent_tracker.get_agent_status(agent_name)
+    if not status:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+    return status
+
+@app.get("/api/agents/statistics")
+def get_agent_statistics():
+    """에이전트 통합 통계 조회"""
+    return agent_tracker.get_statistics()
+
+@app.get("/api/workflows/history")
+def get_workflow_history(limit: int = 20):
+    """Workflow 실행 이력 조회"""
+    return agent_tracker.get_workflow_history(limit)
+
+@app.get("/api/workflows/{workflow_id}")
+def get_workflow_detail(workflow_id: str):
+    """특정 Workflow 상세 조회"""
+    workflow = agent_tracker.get_workflow_by_id(workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+    return workflow
 
 @app.get("/api/queue", dependencies=[Depends(verify_admin_token)])
 def list_queue(status: str = "pending", aq: ApprovalQueueManager = Depends(get_aq)):
@@ -390,8 +676,9 @@ def run_handoff(aq: ApprovalQueueManager = Depends(get_aq)):
         )
         raise
 
-@app.get("/", response_class=HTMLResponse)
-def index():
+# OLD ROUTE - Replaced with Template-based Agent Console (see line 1613)
+# @app.get("/", response_class=HTMLResponse)
+def index_old():
     return """
     <!DOCTYPE html>
     <html lang="en">
@@ -400,7 +687,7 @@ def index():
         <title>Approval Queue MVP</title>
         <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; height: 100vh; margin: 0; background: #f9fafb; color: #111827;}
-            .sidebar { width: 350px; border-right: 1px solid #e5e7eb; padding: 20px; overflow-y: auto; background: #fff;}
+            .sidebar { width: 420px; border-right: 1px solid #e5e7eb; padding: 20px; overflow-y: auto; background: #fff;}
             .main { flex: 1; padding: 20px; overflow-y: auto; }
             .item-card { padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; }
             .item-card:hover { border-color: #3b82f6; background: #eff6ff;}
@@ -408,7 +695,9 @@ def index():
             .badge.hold { background: #fee2e2; color: #991b1b; }
             .badge.ready { background: #dcfce3; color: #166534; }
             pre { background: #1f2937; color: #e5e7eb; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px;}
-            .btn { cursor: pointer; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; color: white;}
+            .btn { cursor: pointer; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; color: white; transition: 0.2s;}
+            .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+            .btn:disabled { opacity: 0.5; cursor: not-allowed; }
             .btn-blue { background: #3b82f6; }
             .btn-green { background: #10b981; }
             .btn-red { background: #ef4444; }
@@ -417,21 +706,41 @@ def index():
             .settings-box { border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 20px; font-size: 12px; color: #4b5563; }
             .status-badge { font-size: 10px; padding: 2px 4px; border-radius: 3px; background: #e5e7eb; margin-left: 5px; }
             textarea { width: 100%; height: 80px; margin-bottom: 10px; padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;}
+            .summary-card { background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+            @keyframes slideInRight { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+            @keyframes slideOutRight { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100px); } }
         </style>
     </head>
     <body>
         <div class="sidebar">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin:0;">Queue</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h2 style="margin:0;">승인 대기열</h2>
                 <a href="/health" target="_blank" style="font-size: 10px; color: #10b981; text-decoration: none;">● System Healthy</a>
             </div>
-            
-            <select id="statusFilter" onchange="loadItems()" style="width:100%; padding:8px; margin: 15px 0;">
-                <option value="pending" selected>Pending</option>
-                <option value="approved">Approved</option>
-                <option value="needs_edit">Needs Edit</option>
-                <option value="rejected">Rejected</option>
-            </select>
+
+            <!-- Navigation -->
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">
+                <a href="/" style="padding: 8px 16px; background: #3b82f6; color: white; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">승인 대기열</a>
+                <a href="/agents" style="padding: 8px 16px; background: #f3f4f6; color: #4b5563; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; transition: 0.2s;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">🤖 에이전트</a>
+            </div>
+
+            <div style="margin: 15px 0;">
+                <label style="font-size:12px; font-weight:600; color:#4b5563; display:block; margin-bottom:6px;">
+                    상태 필터
+                </label>
+                <select id="statusFilter" onchange="loadItems()" style="width:100%; padding:10px; border-radius:6px; border:1px solid #d1d5db; font-size:14px;">
+                    <option value="pending" selected>⏳ Pending</option>
+                    <option value="approved">✅ Approved</option>
+                    <option value="needs_edit">✏️ Needs Edit</option>
+                    <option value="rejected">🚫 Rejected</option>
+                </select>
+
+                <!-- Status count summary -->
+                <div id="statusSummary" style="margin-top:10px; padding:12px; background:#f9fafb; border-radius:6px; font-size:11px; color:#6b7280;">
+                    Loading statistics...
+                </div>
+            </div>
+
             <div id="itemList"></div>
 
             <div class="batch-box">
@@ -474,11 +783,65 @@ def index():
             }
 
             function saveToken() {
-                const token = document.getElementById('adminToken').value;
+                const token = document.getElementById('adminToken').value.trim();
+
+                // 1. 빈 토큰 검증
+                if (!token) {
+                    showNotification('❌ 토큰을 입력해주세요.', 'error');
+                    return;
+                }
+
+                // 2. 토큰 포맷 검증 (간단한 길이 체크)
+                if (token.length < 20) {
+                    if (!confirm('토큰이 너무 짧습니다. 정말 저장하시겠습니까?')) {
+                        return;
+                    }
+                }
+
                 localStorage.setItem('admin_token', token);
-                alert('Token saved to localStorage!');
-                loadItems();
-                loadHandoffStatus();
+
+                // 3. 즉시 검증 시도
+                showNotification('⏳ 토큰 검증 중...', 'info');
+
+                authenticatedFetch('/api/queue?status=pending')
+                    .then(res => {
+                        if (res.ok) {
+                            showNotification('✅ 토큰 저장 및 인증 성공!', 'success');
+                            loadItems();
+                            loadHandoffStatus();
+                        } else {
+                            throw new Error('Unauthorized');
+                        }
+                    })
+                    .catch(err => {
+                        showNotification('⚠️ 토큰이 저장되었지만 인증에 실패했습니다. 토큰을 다시 확인해주세요.', 'warning');
+                    });
+            }
+
+            // Toast Notification Helper
+            function showNotification(message, type = 'info') {
+                const bgColors = {
+                    'success': '#10b981',
+                    'error': '#ef4444',
+                    'warning': '#f59e0b',
+                    'info': '#3b82f6'
+                };
+
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed; top: 20px; right: 20px; z-index: 9999;
+                    background: ${bgColors[type] || bgColors.info};
+                    color: white; padding: 16px 24px; border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600;
+                    animation: slideInRight 0.3s ease; font-size: 14px; max-width: 400px;
+                `;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
             }
 
             function clearToken() {
@@ -507,10 +870,37 @@ def index():
                 try {
                     const res = await authenticatedFetch('/api/queue?status=' + status);
                     const items = await res.json();
-                    
+
                     const listEl = document.getElementById('itemList');
                     listEl.innerHTML = '';
-                    
+
+                    // 통계 새로고침
+                    loadStatusSummary();
+
+                    if (items.length === 0) {
+                        // 다른 Status 추천
+                        const suggestions = {
+                            'pending': '⏳ Pending',
+                            'approved': '✅ Approved',
+                            'needs_edit': '✏️ Needs Edit',
+                            'rejected': '🚫 Rejected'
+                        };
+                        const otherStatuses = Object.keys(suggestions).filter(s => s !== status);
+                        const suggestion = otherStatuses[0];
+
+                        listEl.innerHTML = `
+                            <div style="text-align:center; padding:40px 20px; color:#6b7280;">
+                                <div style="font-size:48px; opacity:0.3;">📭</div>
+                                <p style="margin:12px 0 0 0; font-size:14px; font-weight:600;">No items in ${suggestions[status]}</p>
+                                <p style="margin:4px 0 16px 0; font-size:12px;">이 상태에는 아이템이 없습니다.</p>
+                                <button class="btn btn-blue" onclick="document.getElementById('statusFilter').value='${suggestion}'; loadItems();" style="font-size:13px;">
+                                    ${suggestions[suggestion]} 보기 →
+                                </button>
+                            </div>
+                        `;
+                        return;
+                    }
+
                     items.forEach(item => {
                         const card = document.createElement('div');
                         card.className = 'item-card';
@@ -523,7 +913,26 @@ def index():
                         listEl.appendChild(card);
                     });
                 } catch (e) {
-                    document.getElementById('itemList').innerHTML = '<div style="color:#ef4444; font-size:12px;">Failed to load items. Check token.</div>';
+                    // Empty State for auth failure
+                    const token = getToken();
+                    if (!token || token.length < 10) {
+                        document.getElementById('itemList').innerHTML = `
+                            <div style="text-align:center; padding:40px 20px; color:#6b7280;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style="opacity:0.3; margin:0 auto 16px; display:block;">
+                                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" fill="currentColor"/>
+                                </svg>
+                                <h3 style="margin:0 0 10px 0; font-size:18px; color:#111827;">인증이 필요합니다</h3>
+                                <p style="margin:0 0 20px; font-size:14px;">
+                                    아래 ⬇️ <b>Auth Settings</b>에서<br>Admin Token을 입력해주세요.
+                                </p>
+                                <button class="btn btn-blue" onclick="document.getElementById('adminToken').focus(); document.getElementById('adminToken').scrollIntoView({behavior:'smooth', block:'center'});" style="font-size:13px;">
+                                    토큰 입력하기 →
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        document.getElementById('itemList').innerHTML = '<div style="color:#ef4444; font-size:12px; padding:20px; text-align:center;">❌ Failed to load items.<br>Token may be invalid.</div>';
+                    }
                 }
             }
 
@@ -531,52 +940,150 @@ def index():
                 try {
                     const res = await authenticatedFetch('/api/queue/' + id);
                     currentItem = await res.json();
-                    
+
                     const mainEl = document.getElementById('mainContent');
-                    
+
+                    // Risk notes formatting
+                    const riskNotesHtml = (currentItem.risk_notes && currentItem.risk_notes.length > 0) ? `
+                        <div style="background:#fef2f2; padding:12px; border-radius:6px; border-left:3px solid #ef4444; margin-top:16px;">
+                            <b style="color:#991b1b;">⚠️ Risk Notes:</b>
+                            <ul style="margin:8px 0 0 0; padding-left:20px; color:#7f1d1d;">
+                                ${currentItem.risk_notes.map(note => `<li>${note}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : '';
+
+                    // Options formatting
+                    const optionsHtml = (currentItem.raw_agent_output.normalized_options_ko && currentItem.raw_agent_output.normalized_options_ko.length > 0) ? `
+                        <div style="margin-top:12px;">
+                            <b style="font-size:13px; color:#4b5563;">옵션:</b>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+                                ${currentItem.raw_agent_output.normalized_options_ko.map(opt =>
+                                    `<span style="background:#e5e7eb; padding:4px 8px; border-radius:4px; font-size:12px;">${opt}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    ` : '';
+
                     mainEl.innerHTML = `
-                        <h2>${currentItem.source_title}</h2>
-                        <p><b>Status:</b> ${currentItem.registration_status} | <b>Human Review:</b> ${currentItem.needs_human_review}</p>
-                        <p><b>Reasons:</b> ${currentItem.hold_reason || currentItem.reject_reason || 'None'}</p>
-                        <hr>
-                        <h3>Raw Agent Output (Immutable)</h3>
-                        <pre>${JSON.stringify(currentItem.raw_agent_output, null, 2)}</pre>
-                        
-                        <div class="actions-bar">
-                            <h3>Review Decision</h3>
-                            <p>Current Review Status: <b>${currentItem.reviewer_status}</b></p>
-                            <p style="font-size: 12px; color: #6b7280;">Latest Rev: #${currentItem.latest_revision_number || 1} (${currentItem.latest_registration_title_ko || 'N/A'})</p>
-                            
-                            <textarea id="reviewNote" placeholder="수정 요청 사항을 구체적으로 적어주세요...">${currentItem.reviewer_note || ''}</textarea><br>
-                            
-                            <div id="validationError" style="color: #ef4444; font-size: 13px; margin-bottom: 10px; display: none;"></div>
+                        <!-- 핵심 정보 카드 -->
+                        <div class="summary-card">
+                            <div style="display:flex; justify-content:space-between; align-items:start;">
+                                <div style="flex:1;">
+                                    <h2 style="margin:0 0 8px 0; font-size:20px;">${currentItem.raw_agent_output.registration_title_ko || currentItem.source_title}</h2>
+                                    <div style="font-size:13px; color:#6b7280;">
+                                        원본: ${currentItem.source_title}
+                                    </div>
+                                </div>
+                                <span class="badge ${currentItem.registration_status}" style="font-size:14px; padding:6px 12px;">
+                                    ${currentItem.registration_status}
+                                </span>
+                            </div>
 
-                            <button class="btn btn-green" onclick="submitReview('approved')">Approve (마켓전송대기)</button>
-                            <button class="btn btn-blue" onclick="submitReview('needs_edit')">Needs Edit (수정재요청)</button>
-                            <button class="btn btn-red" onclick="submitReview('rejected')">Reject (기각)</button>
-                            
-                            ${currentItem.reviewer_status === 'needs_edit' ? 
-                                `<button id="retryBtn" class="btn btn-blue" style="margin-top:10px; background:#6366f1;" onclick="triggerRetry()">🚀 Retry Agent with Note</button>` 
-                                : ''
-                            }
+                            ${riskNotesHtml}
+                            ${optionsHtml}
 
-                            ${currentItem.reviewer_status === 'approved' ? 
-                                `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #e5e7eb;">
-                                    <p style="font-size: 13px; font-weight: bold; color: #166534;">✅ Approved Item Download (Latest Revision)</p>
-                                    <button class="btn btn-blue" style="font-size:12px; background:#1f2937;" onclick="downloadExport('/api/queue/${currentItem.review_id}/export/json', 'export_${currentItem.review_id}.json')">Export JSON</button>
-                                    <button class="btn btn-blue" style="font-size:12px; background:#4b5563;" onclick="downloadExport('/api/queue/${currentItem.review_id}/export/csv', 'export_${currentItem.review_id}.csv')">Export CSV</button>
-                                 </div>` 
-                                : ''
-                            }
+                            ${currentItem.raw_agent_output.short_description_ko ? `
+                                <div style="margin-top:16px; padding-top:16px; border-top:1px solid #e5e7eb;">
+                                    <b style="font-size:13px; color:#4b5563;">간단 설명:</b>
+                                    <p style="margin:6px 0 0 0; font-size:13px; color:#374151; line-height:1.6;">
+                                        ${currentItem.raw_agent_output.short_description_ko}
+                                    </p>
+                                </div>
+                            ` : ''}
                         </div>
 
-                        <div id="revisionHistory" style="margin-top: 30px;">
+                        <!-- 리뷰 액션 바 -->
+                        <div class="actions-bar">
+                            <h3 style="margin-top:0;">리뷰 결정</h3>
+
+                            <!-- 현재 상태 배지 -->
+                            <div style="display:inline-block; background:#fef3c7; border:1px solid #fbbf24; padding:8px 12px; border-radius:6px; margin-bottom:16px;">
+                                <span style="font-size:12px; color:#92400e;">현재 상태: <b>${currentItem.reviewer_status}</b> | Revision: #${currentItem.latest_revision_number || 1}</span>
+                            </div>
+
+                            <textarea id="reviewNote" placeholder="수정 요청 사항을 구체적으로 적어주세요...">${currentItem.reviewer_note || ''}</textarea>
+
+                            <div id="validationError" style="color: #ef4444; font-size: 13px; margin-bottom: 10px; display: none;"></div>
+
+                            <!-- 버튼 그룹 -->
+                            <div style="display:grid; gap:10px; margin-top:16px;">
+                                <button class="btn btn-green" onclick="submitReview('approved')" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                                    <span>✅</span>
+                                    <div style="text-align:left; flex:1;">
+                                        <div style="font-weight:bold;">Approve</div>
+                                        <div style="font-size:11px; opacity:0.8;">마켓 전송 대기열로 이동 (최종 승인)</div>
+                                    </div>
+                                </button>
+
+                                <button class="btn btn-blue" onclick="submitReview('needs_edit')" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                                    <span>✏️</span>
+                                    <div style="text-align:left; flex:1;">
+                                        <div style="font-weight:bold;">Request Revision</div>
+                                        <div style="font-size:11px; opacity:0.8;">위 메모를 AI에게 전달하여 재작성 요청 (Retry 가능)</div>
+                                    </div>
+                                </button>
+
+                                <button class="btn btn-red" onclick="submitReview('rejected')" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                                    <span>🚫</span>
+                                    <div style="text-align:left; flex:1;">
+                                        <div style="font-weight:bold;">Reject</div>
+                                        <div style="font-size:11px; opacity:0.8;">영구 기각 (복구 불가)</div>
+                                    </div>
+                                </button>
+                            </div>
+
+                            ${currentItem.reviewer_status === 'needs_edit' ? `
+                                <div style="margin-top:20px; padding:16px; background:#eff6ff; border:2px dashed #3b82f6; border-radius:8px;">
+                                    <p style="margin:0 0 10px 0; font-weight:600; color:#1e40af;">
+                                        💡 다음 단계: AI 재시도 실행
+                                    </p>
+                                    <p style="margin:0 0 12px 0; font-size:13px; color:#1e3a8a;">
+                                        위에 작성한 리뷰 메모를 AI Agent에게 전달하여 상품 정보를 다시 생성합니다.
+                                    </p>
+                                    <button id="retryBtn" class="btn btn-blue" style="width:100%; background:#6366f1;" onclick="triggerRetry()">
+                                        🚀 AI Retry with Note
+                                    </button>
+                                </div>
+                            ` : ''}
+
+                            ${currentItem.reviewer_status === 'approved' ? `
+                                <div style="margin-top:20px; padding:16px; background:#f0fdf4; border:2px solid #86efac; border-radius:8px;">
+                                    <p style="margin:0 0 10px 0; font-weight:600; color:#166534;">
+                                        ✅ 승인 완료 - 데이터 다운로드
+                                    </p>
+                                    <div style="display:flex; gap:8px;">
+                                        <button class="btn btn-blue" style="font-size:12px; background:#1f2937; flex:1;" onclick="downloadExport('/api/queue/${currentItem.review_id}/export/json', 'export_${currentItem.review_id}.json')">📄 JSON</button>
+                                        <button class="btn btn-blue" style="font-size:12px; background:#4b5563; flex:1;" onclick="downloadExport('/api/queue/${currentItem.review_id}/export/csv', 'export_${currentItem.review_id}.csv')">📊 CSV</button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Revision History -->
+                        <div id="revisionHistory" style="margin-top:30px;">
                             <h3>Revision History</h3>
                             <div id="revisionsList">Loading history...</div>
                         </div>
+
+                        <!-- 전체 JSON (접기 가능) -->
+                        <details style="margin-top:30px;">
+                            <summary style="cursor:pointer; font-weight:600; color:#3b82f6; font-size:14px; padding:12px; background:#f3f4f6; border-radius:6px;">
+                                🔍 전체 JSON 데이터 보기 (개발자용)
+                            </summary>
+                            <pre style="margin-top:10px;">${JSON.stringify(currentItem.raw_agent_output, null, 2)}</pre>
+                        </details>
                     `;
                     loadRevisions(id);
-                } catch(e) {}
+                } catch(e) {
+                    document.getElementById('mainContent').innerHTML = `
+                        <div style="text-align:center; padding:60px 20px; color:#ef4444;">
+                            <div style="font-size:48px;">❌</div>
+                            <h3 style="margin:16px 0 8px 0;">Failed to load item details</h3>
+                            <p style="margin:0; font-size:14px; color:#6b7280;">Error: ${e.message || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
             }
 
             async function downloadExport(url, filename) {
@@ -783,10 +1290,46 @@ def index():
                 }
             }
 
+            async function loadStatusSummary() {
+                try {
+                    const res = await fetch('/api/stats');
+                    const stats = await res.json();
+
+                    const currentStatus = document.getElementById('statusFilter').value;
+
+                    document.getElementById('statusSummary').innerHTML = `
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                            <div style="padding:6px; background:${currentStatus === 'pending' ? '#dbeafe' : '#fff'}; border-radius:4px; text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#3b82f6;">${stats.pending}</div>
+                                <div style="font-size:10px;">Pending</div>
+                            </div>
+                            <div style="padding:6px; background:${currentStatus === 'approved' ? '#dcfce7' : '#fff'}; border-radius:4px; text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#10b981;">${stats.approved}</div>
+                                <div style="font-size:10px;">Approved</div>
+                            </div>
+                            <div style="padding:6px; background:${currentStatus === 'needs_edit' ? '#fef3c7' : '#fff'}; border-radius:4px; text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#f59e0b;">${stats.needs_edit}</div>
+                                <div style="font-size:10px;">Needs Edit</div>
+                            </div>
+                            <div style="padding:6px; background:${currentStatus === 'rejected' ? '#fee2e2' : '#fff'}; border-radius:4px; text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#ef4444;">${stats.rejected}</div>
+                                <div style="font-size:10px;">Rejected</div>
+                            </div>
+                        </div>
+                        <div style="text-align:center; padding-top:8px; border-top:1px solid #e5e7eb;">
+                            <b>Total:</b> ${stats.total}
+                        </div>
+                    `;
+                } catch(e) {
+                    document.getElementById('statusSummary').innerHTML = 'Stats unavailable.';
+                }
+            }
+
             // Init
             document.getElementById('adminToken').value = getToken();
             loadItems();
             loadHandoffStatus();
+            loadStatusSummary();  // 통계 로드 추가
         </script>
     </body>
     </html>
@@ -794,3 +1337,591 @@ def index():
     </body>
     </html>
     """
+
+# OLD ROUTE - Replaced with Template-based Agent Console (see line 1613)
+# @app.get("/agents", response_class=HTMLResponse)
+def agents_dashboard_old():
+    """Multi-Agent Dashboard - 5개 에이전트 실시간 모니터링"""
+    return """
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🤖 Multi-Agent Dashboard | Fortimove PM Agent</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: #1f2937;
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+            .header {
+                background: white;
+                padding: 24px;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .header h1 {
+                font-size: 28px;
+                font-weight: 700;
+                color: #111827;
+            }
+            .header .nav {
+                display: flex;
+                gap: 12px;
+            }
+            .header .nav a {
+                padding: 10px 20px;
+                background: #f3f4f6;
+                border-radius: 6px;
+                text-decoration: none;
+                color: #4b5563;
+                font-weight: 600;
+                font-size: 14px;
+                transition: 0.2s;
+            }
+            .header .nav a:hover {
+                background: #e5e7eb;
+            }
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 16px;
+                margin-bottom: 20px;
+            }
+            .stat-card {
+                background: white;
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            .stat-card .number {
+                font-size: 36px;
+                font-weight: 700;
+                margin-bottom: 8px;
+            }
+            .stat-card .label {
+                font-size: 13px;
+                color: #6b7280;
+                font-weight: 600;
+            }
+            .agents-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+            .agent-card {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                transition: 0.2s;
+                position: relative;
+                overflow: hidden;
+            }
+            .agent-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            }
+            .agent-card .status-indicator {
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                animation: pulse 2s infinite;
+            }
+            .agent-card.status-idle .status-indicator { background: #9ca3af; }
+            .agent-card.status-running .status-indicator { background: #3b82f6; }
+            .agent-card.status-completed .status-indicator { background: #10b981; }
+            .agent-card.status-failed .status-indicator { background: #ef4444; }
+
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+
+            .agent-card h3 {
+                font-size: 18px;
+                margin-bottom: 8px;
+                color: #111827;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .agent-card .status-text {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .status-idle { background: #f3f4f6; color: #6b7280; }
+            .status-running { background: #dbeafe; color: #1e40af; }
+            .status-completed { background: #d1fae5; color: #065f46; }
+            .status-failed { background: #fee2e2; color: #991b1b; }
+
+            .agent-card .current-task {
+                margin: 12px 0;
+                padding: 12px;
+                background: #f9fafb;
+                border-radius: 6px;
+                font-size: 13px;
+                color: #374151;
+                min-height: 60px;
+            }
+            .agent-card .stats-row {
+                display: flex;
+                justify-content: space-around;
+                margin-top: 16px;
+                padding-top: 16px;
+                border-top: 1px solid #e5e7eb;
+            }
+            .agent-card .stat-item {
+                text-align: center;
+            }
+            .agent-card .stat-item .number {
+                font-size: 20px;
+                font-weight: 700;
+                color: #111827;
+            }
+            .agent-card .stat-item .label {
+                font-size: 11px;
+                color: #9ca3af;
+                margin-top: 4px;
+            }
+            .workflow-section {
+                background: white;
+                border-radius: 12px;
+                padding: 24px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .workflow-section h2 {
+                font-size: 20px;
+                margin-bottom: 16px;
+                color: #111827;
+            }
+            .workflow-list {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .workflow-item {
+                padding: 16px;
+                background: #f9fafb;
+                border-radius: 8px;
+                border-left: 4px solid #e5e7eb;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: 0.2s;
+                cursor: pointer;
+            }
+            .workflow-item:hover {
+                background: #f3f4f6;
+            }
+            .workflow-item.completed { border-left-color: #10b981; }
+            .workflow-item.failed { border-left-color: #ef4444; }
+            .workflow-item.running { border-left-color: #3b82f6; }
+
+            .workflow-item .info .id {
+                font-size: 12px;
+                color: #6b7280;
+                font-family: monospace;
+            }
+            .workflow-item .info .task {
+                font-size: 14px;
+                color: #111827;
+                font-weight: 600;
+                margin-top: 4px;
+            }
+            .workflow-item .meta {
+                text-align: right;
+            }
+            .workflow-item .meta .duration {
+                font-size: 12px;
+                color: #6b7280;
+            }
+            .workflow-item .meta .timestamp {
+                font-size: 11px;
+                color: #9ca3af;
+                margin-top: 4px;
+            }
+            .refresh-btn {
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                background: #3b82f6;
+                color: white;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+                transition: 0.2s;
+            }
+            .refresh-btn:hover {
+                transform: scale(1.1);
+                background: #2563eb;
+            }
+            .empty-state {
+                text-align: center;
+                padding: 40px;
+                color: #9ca3af;
+            }
+            .empty-state .icon {
+                font-size: 48px;
+                margin-bottom: 12px;
+                opacity: 0.3;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <h1>🤖 Multi-Agent Dashboard</h1>
+                <div class="nav">
+                    <a href="/">승인 대기열</a>
+                    <a href="/agents">에이전트 모니터</a>
+                    <a href="/health" target="_blank">Health Check</a>
+                </div>
+            </div>
+
+            <!-- Top Statistics -->
+            <div class="stats-grid" id="topStats">
+                <div class="stat-card">
+                    <div class="number" style="color: #3b82f6;" id="runningCount">-</div>
+                    <div class="label">실행 중</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" style="color: #10b981;" id="completedCount">-</div>
+                    <div class="label">완료</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" style="color: #ef4444;" id="failedCount">-</div>
+                    <div class="label">실패</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" style="color: #6b7280;" id="totalWorkflows">-</div>
+                    <div class="label">총 워크플로우</div>
+                </div>
+            </div>
+
+            <!-- Agents Grid -->
+            <div class="agents-grid" id="agentsGrid">
+                <!-- Agents will be loaded here -->
+            </div>
+
+            <!-- Recent Workflows -->
+            <div class="workflow-section">
+                <h2>📋 최근 Workflow 실행 이력</h2>
+                <div class="workflow-list" id="workflowList">
+                    <!-- Workflows will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Refresh Button -->
+        <button class="refresh-btn" onclick="loadAll()" title="새로고침">🔄</button>
+
+        <script>
+            async function loadAgentStatus() {
+                try {
+                    const res = await fetch('/api/agents/status');
+                    const data = await res.json();
+
+                    const agentsGrid = document.getElementById('agentsGrid');
+                    agentsGrid.innerHTML = '';
+
+                    const agentOrder = ['pm', 'product_registration', 'cs', 'sourcing', 'pricing'];
+                    const agentIcons = {
+                        'pm': '👔',
+                        'product_registration': '📦',
+                        'cs': '💬',
+                        'sourcing': '🔍',
+                        'pricing': '💰'
+                    };
+
+                    agentOrder.forEach(agentKey => {
+                        const agent = data.agents[agentKey];
+                        if (!agent) return;
+
+                        const card = document.createElement('div');
+                        card.className = `agent-card status-${agent.status}`;
+
+                        const currentTaskHTML = agent.current_task
+                            ? `<strong>현재 작업:</strong> ${agent.current_task}`
+                            : '<span style="color:#9ca3af;">대기 중...</span>';
+
+                        card.innerHTML = `
+                            <div class="status-indicator"></div>
+                            <h3>
+                                <span style="font-size:24px;">${agentIcons[agentKey]}</span>
+                                ${agent.name}
+                            </h3>
+                            <span class="status-text status-${agent.status}">${agent.status}</span>
+
+                            <div class="current-task">
+                                ${currentTaskHTML}
+                            </div>
+
+                            <div class="stats-row">
+                                <div class="stat-item">
+                                    <div class="number">${agent.total_executions}</div>
+                                    <div class="label">총 실행</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="number" style="color:#10b981;">${agent.success_count}</div>
+                                    <div class="label">성공</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="number" style="color:#ef4444;">${agent.failure_count}</div>
+                                    <div class="label">실패</div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top:12px; font-size:11px; color:#9ca3af; text-align:center;">
+                                최근 업데이트: ${new Date(agent.last_updated).toLocaleString('ko-KR')}
+                            </div>
+                        `;
+
+                        agentsGrid.appendChild(card);
+                    });
+
+                } catch (e) {
+                    console.error('Failed to load agent status:', e);
+                    document.getElementById('agentsGrid').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>에이전트 상태를 불러올 수 없습니다</p></div>';
+                }
+            }
+
+            async function loadStatistics() {
+                try {
+                    const res = await fetch('/api/agents/statistics');
+                    const stats = await res.json();
+
+                    document.getElementById('runningCount').textContent = stats.running_agents || 0;
+                    document.getElementById('completedCount').textContent = stats.completed_workflows || 0;
+                    document.getElementById('failedCount').textContent = stats.failed_workflows || 0;
+                    document.getElementById('totalWorkflows').textContent = stats.total_workflows || 0;
+
+                } catch (e) {
+                    console.error('Failed to load statistics:', e);
+                }
+            }
+
+            async function loadWorkflowHistory() {
+                try {
+                    const res = await fetch('/api/workflows/history?limit=10');
+                    const workflows = await res.json();
+
+                    const workflowList = document.getElementById('workflowList');
+
+                    if (workflows.length === 0) {
+                        workflowList.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>아직 실행된 워크플로우가 없습니다</p></div>';
+                        return;
+                    }
+
+                    workflowList.innerHTML = '';
+
+                    workflows.forEach(workflow => {
+                        const item = document.createElement('div');
+                        item.className = `workflow-item ${workflow.status}`;
+
+                        const createdAt = new Date(workflow.created_at).toLocaleString('ko-KR');
+                        const duration = workflow.duration_seconds.toFixed(1);
+
+                        item.innerHTML = `
+                            <div class="info">
+                                <div class="id">${workflow.workflow_id}</div>
+                                <div class="task">${workflow.task_type}</div>
+                            </div>
+                            <div class="meta">
+                                <div class="duration">${duration}초</div>
+                                <div class="timestamp">${createdAt}</div>
+                            </div>
+                        `;
+
+                        item.onclick = () => {
+                            alert(`Workflow ID: ${workflow.workflow_id}\n\nStatus: ${workflow.status}\nSteps: ${workflow.steps.length}개\nDuration: ${duration}초\n\n상세 UI는 추후 구현 예정입니다.`);
+                        };
+
+                        workflowList.appendChild(item);
+                    });
+
+                } catch (e) {
+                    console.error('Failed to load workflow history:', e);
+                    document.getElementById('workflowList').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>워크플로우 이력을 불러올 수 없습니다</p></div>';
+                }
+            }
+
+            async function loadAll() {
+                await Promise.all([
+                    loadAgentStatus(),
+                    loadStatistics(),
+                    loadWorkflowHistory()
+                ]);
+            }
+
+            // Auto-refresh every 5 seconds
+            setInterval(loadAll, 5000);
+
+            // Initial load
+            loadAll();
+        </script>
+    </body>
+    </html>
+    """
+
+
+# ============================================================
+# Phase 4 UI Routes
+# ============================================================
+
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+# Mount static files
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+
+# Setup templates
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+# Phase 4 Review Console API Router
+from review_console_api import router as review_console_router
+app.include_router(review_console_router)
+
+# Phase 1 Content Generation API Router
+from content_generation_api import router as content_generation_router
+app.include_router(content_generation_router)
+
+# Redesign Pipeline API Router
+from redesign_api import router as redesign_router
+app.include_router(redesign_router)
+
+# Image Editor API Router
+from image_editor_api import router as editor_router
+app.include_router(editor_router)
+
+# COO Agent API Router
+from coo_api import router as coo_router
+app.include_router(coo_router)
+
+# Sales Tracker API Router
+from sales_api import router as sales_router
+app.include_router(sales_router)
+
+# BI & FinOps API Router
+from bi_api import router as bi_router
+app.include_router(bi_router)
+
+# KPI API Router
+from kpi_api import router as kpi_router
+app.include_router(kpi_router)
+
+# CSO Execution API Router
+from cso_execution_api import router as cso_exec_router
+app.include_router(cso_exec_router)
+
+# Daily Log API Router
+from daily_log_api import router as daily_router
+app.include_router(daily_router)
+
+# Scale API Router — 5000억 매출 목표
+from scale_api import router as scale_router
+app.include_router(scale_router)
+
+
+@app.get("/workbench", response_class=HTMLResponse)
+async def workbench_page(request: Request):
+    """통합 워크벤치 - URL 입력부터 상세페이지 완성까지 한 화면"""
+    return templates.TemplateResponse(request=request, name="workbench.html", context={})
+
+
+@app.get("/", response_class=HTMLResponse)
+async def business_dashboard_page(request: Request):
+    """Business Dashboard - 대표용 메인 대시보드"""
+    return templates.TemplateResponse(request=request, name="business_dashboard.html", context={"page": "home"})
+
+
+@app.get("/ledger", response_class=HTMLResponse)
+async def ledger_page(request: Request):
+    """장부 전용 페이지 - 일일 장부 입력 + 엑셀 업로드"""
+    return templates.TemplateResponse(request=request, name="business_dashboard.html", context={"page": "ledger"})
+
+
+@app.get("/agents", response_class=HTMLResponse)
+async def agent_console_page(request: Request):
+    """Agent Console - 기술 관리자용 대시보드"""
+    return templates.TemplateResponse(request=request, name="agent_console.html", context={})
+
+
+@app.get("/review/list", response_class=HTMLResponse)
+async def review_list_page(request: Request):
+    """Review list page"""
+    return templates.TemplateResponse(request=request, name="review_list.html", context={})
+
+
+@app.get("/review/detail/{review_id}")
+async def review_detail_page(request: Request, review_id: str):
+    """리뷰 상세 → 워크벤치로 리다이렉트"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/workbench?review={review_id}")
+
+@app.get("/review/detail-legacy/{review_id}", response_class=HTMLResponse)
+async def review_detail_legacy_page(request: Request, review_id: str):
+    """Legacy review detail page (backup)"""
+    return templates.TemplateResponse(
+        request=request,
+        name="review_detail.html",
+        context={"review_id": review_id}
+    )
+
+
+@app.get("/coo", response_class=HTMLResponse)
+async def coo_dashboard_page(request: Request):
+    """COO 브리핑 대시보드"""
+    return templates.TemplateResponse(request=request, name="coo_dashboard.html", context={})
+
+
+@app.get("/bi", response_class=HTMLResponse)
+async def bi_dashboard_page(request: Request):
+    """BI & FinOps 대시보드"""
+    return templates.TemplateResponse(request=request, name="bi_dashboard.html", context={})
+
+
+@app.get("/redesign/queue", response_class=HTMLResponse)
+async def redesign_queue_page(request: Request):
+    """상세페이지 리디자인 대기열"""
+    return templates.TemplateResponse(request=request, name="redesign_queue.html", context={})
+
+
+@app.get("/redesign/editor/{redesign_id}", response_class=HTMLResponse)
+async def redesign_editor_page(request: Request, redesign_id: str):
+    """상세페이지 리디자인 편집기"""
+    return templates.TemplateResponse(
+        request=request,
+        name="redesign_editor.html",
+        context={"redesign_id": redesign_id}
+    )
+
+

@@ -1,0 +1,141 @@
+version: '3.8'
+
+# ══════════════════════════════════════════════════════════
+# Fortimove-OS — 전체 시스템 통합 Docker Compose
+# 실행: docker-compose up -d
+# ══════════════════════════════════════════════════════════
+
+services:
+  # ── 인프라 ────────────────────────────────────────────
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: fortimove_images
+      POSTGRES_USER: fortimove
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-fortimove123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fortimove"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Image Localization System ─────────────────────────
+  backend:
+    build: ./image-localization-system/backend
+    environment:
+      - DATABASE_URL=postgresql://fortimove:${DB_PASSWORD:-fortimove123}@db:5432/fortimove_images
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-fortimove-secret}
+      - DEBUG=false
+    volumes:
+      - image_storage:/tmp/fortimove-images
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery_worker:
+    build: ./image-localization-system/backend
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql://fortimove:${DB_PASSWORD:-fortimove123}@db:5432/fortimove_images
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    volumes:
+      - image_storage:/tmp/fortimove-images
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+
+  frontend:
+    build: ./image-localization-system/frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Daily Wellness Scout ──────────────────────────────
+  daily_scout:
+    build: ./daily-scout
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SCHEDULE_TIME=${SCOUT_SCHEDULE_TIME:-09:00}
+      - RUN_IMMEDIATELY=${SCOUT_RUN_IMMEDIATELY:-false}
+      - EMAIL_SENDER=${SCOUT_EMAIL_SENDER}
+      - EMAIL_PASSWORD=${SCOUT_EMAIL_PASSWORD}
+      - EMAIL_RECIPIENTS=${SCOUT_EMAIL_RECIPIENTS}
+      - SLACK_WEBHOOK_URL=${SCOUT_SLACK_WEBHOOK_URL}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=fortimove_images
+      - DB_USER=fortimove
+      - DB_PASSWORD=${DB_PASSWORD:-fortimove123}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── PM Agent Dashboard ────────────────────────────────
+  pm_agent:
+    build: ./pm-agent
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ALLOW_LOCAL_NOAUTH=true
+      - IMAGE_LOCALIZATION_URL=http://backend:8000/api/v1/process
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=fortimove_images
+      - DB_USER=fortimove
+      - DB_PASSWORD=${DB_PASSWORD:-fortimove123}
+    volumes:
+      - pm_agent_data:/app/data
+    ports:
+      - "8051:8051"
+    depends_on:
+      - backend
+      - db
+    restart: unless-stopped
+
+  # ── Sentinel (BI Scanner) ─────────────────────────────
+  sentinel:
+    build: ./sentinel
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SCHEDULE_TIME=09:00
+    volumes:
+      - sentinel_data:/app/data
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  image_storage:
+  pm_agent_data:
+  sentinel_data:

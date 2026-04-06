@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortimove 운영 센터</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --brand: #e94560; --bg: #f5f6fa; --card: #ffffff; --text: #2d3436; --muted: #8395a7; --border: #e8ecf1; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--text); }
+
+        /* 네비 */
+        .top-nav { background:#1a1a2e; padding:0 24px; height:48px; display:flex; align-items:center; justify-content:space-between; }
+        .top-nav .brand { color:var(--brand); font-weight:800; font-size:1.2rem; text-decoration:none; }
+        .top-nav .nav-links { display:flex; gap:8px; }
+        .top-nav .nav-links a { color:#8b949e; text-decoration:none; padding:8px 14px; border-radius:6px; font-size:0.85rem; transition:all 0.2s; }
+        .top-nav .nav-links a:hover, .top-nav .nav-links a.active { color:#fff; background:rgba(255,255,255,0.1); }
+
+        /* 히어로 */
+        .hero { background:linear-gradient(135deg,#1a1a2e,#16213e); color:white; padding:32px 0; }
+        .hero h1 { font-size:1.6rem; font-weight:700; }
+        .hero p { color:rgba(255,255,255,0.6); font-size:0.9rem; }
+        .coo-brief { background:rgba(233,69,96,0.1); border:1px solid rgba(233,69,96,0.3); border-radius:12px; padding:16px 20px; margin-top:16px; }
+        .coo-brief .headline { color:var(--brand); font-weight:700; font-size:1rem; }
+
+        /* 업무 카드 */
+        .work-section { padding:32px 0; }
+        .step-card { background:var(--card); border-radius:16px; border:1px solid var(--border); padding:28px; margin-bottom:16px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden; }
+        .step-card:hover { box-shadow:0 8px 32px rgba(0,0,0,0.08); transform:translateY(-2px); }
+        .step-card .step-num { position:absolute; top:20px; right:24px; font-size:3rem; font-weight:900; color:rgba(0,0,0,0.04); }
+        .step-card .icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; }
+        .step-card h3 { font-size:1.1rem; font-weight:700; margin-bottom:4px; }
+        .step-card p { color:var(--muted); font-size:0.85rem; margin-bottom:12px; }
+        .step-card .badge-count { background:var(--brand); color:white; border-radius:20px; padding:2px 10px; font-size:0.75rem; font-weight:600; }
+        .step-card .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+        .dot-green { background:#00b894; } .dot-yellow { background:#fdcb6e; } .dot-red { background:#d63031; }
+
+        /* 빠른 상태 */
+        .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+        .kpi-box { background:var(--card); border-radius:12px; padding:16px 20px; border:1px solid var(--border); text-align:center; }
+        .kpi-box .num { font-size:2rem; font-weight:800; }
+        .kpi-box .label { font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+
+        /* 사이드바 */
+        .sidebar-card { background:var(--card); border-radius:16px; border:1px solid var(--border); padding:20px; margin-bottom:16px; }
+        .sidebar-card h4 { font-size:0.9rem; font-weight:700; margin-bottom:12px; }
+        .alert-item { padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85rem; }
+        .alert-item:last-child { border:none; }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .kpi-row { grid-template-columns: repeat(2,1fr); }
+            .step-card .step-num { display:none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 네비게이션 -->
+    <nav class="top-nav">
+        <a class="brand" href="/">FORTIMOVE GLOBAL</a>
+        <div class="nav-links">
+            <a href="/workbench">워크벤치</a>
+            <a href="/" class="{% if page != 'ledger' %}active{% endif %}">홈</a>
+            <a href="/ledger" class="{% if page == 'ledger' %}active{% endif %}">📒 장부</a>
+            <a href="/coo">COO 브리핑</a>
+            <a href="/review/list">리뷰</a>
+            <a href="/redesign/queue">상세페이지</a>
+            <a href="/agents">에이전트</a>
+                <a class="nav-link" href="/bi">BI &amp; FinOps</a>
+        </div>
+    </nav>
+
+    <!-- 히어로 -->
+    <div class="hero">
+        <div class="container">
+            <h1>운영 센터</h1>
+            <p>프리미엄 웰니스 브랜드를 만드는 당신의 AI 운영 본부</p>
+            <div class="coo-brief" onclick="location.href='/coo'" style="cursor:pointer;">
+                <div class="headline" id="cooHeadline">브리핑 로딩 중...</div>
+                <div style="color:rgba(255,255,255,0.5);font-size:0.8rem;margin-top:4px;" id="cooSub">클릭하여 COO 브리핑 상세 보기</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container work-section">
+
+        {% if page == 'ledger' %}
+        <!-- 탭 스위처 -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);">
+            <button class="ledger-tab active" data-tab="daily" onclick="switchLedgerTab('daily')"
+                style="background:none;border:none;color:var(--text);padding:12px 20px;cursor:pointer;font-size:14px;font-weight:700;border-bottom:3px solid var(--brand);">
+                📒 오늘의 장부
+            </button>
+            <button class="ledger-tab" data-tab="orders" onclick="switchLedgerTab('orders')"
+                style="background:none;border:none;color:var(--muted);padding:12px 20px;cursor:pointer;font-size:14px;font-weight:700;border-bottom:3px solid transparent;">
+                📋 거래 원장 (세무 증빙)
+            </button>
+            <button class="ledger-tab" data-tab="tax" onclick="switchLedgerTab('tax')"
+                style="background:none;border:none;color:var(--muted);padding:12px 20px;cursor:pointer;font-size:14px;font-weight:700;border-bottom:3px solid transparent;">
+                💰 월별 세무 집계
+            </button>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- 📒 오늘의 장부 (전용 페이지) -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div id="dailyLogPanel" data-tabpanel="daily" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">📒 오늘의 장부</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:var(--text);margin-top:2px;" id="dailyTitleDate">-</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="date" id="dailyDate" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;" onchange="loadDailyLog()">
+                    <label for="excelUploadInput" title="구매대행 소명자료 장부 엑셀 파일 업로드" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+                        📥 엑셀 업로드
+                    </label>
+                    <input type="file" id="excelUploadInput" accept=".xlsx,.xls" style="display:none" onchange="uploadExcel(this.files[0])">
+                    <button onclick="saveDailyLog()" id="saveDailyBtn" style="background:var(--brand);border:none;color:#fff;padding:9px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">💾 저장</button>
+                </div>
+            </div>
+
+            <!-- 실적 vs 목표 비교 (3단: 오늘/이번달/연간) -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;">
+                <!-- 오늘 -->
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;" onclick="openTargetModal('daily')" title="클릭해서 하루 목표 수정">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;">오늘 매출</div>
+                        <div style="font-size:9px;color:var(--muted);">✏️ 목표 수정</div>
+                    </div>
+                    <div style="font-size:1.6rem;font-weight:900;color:var(--text);" id="todayRevenue">₩0</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+                        목표 <span id="todayTarget" style="color:var(--text);font-weight:700;">미설정</span>
+                    </div>
+                    <div style="background:var(--border);border-radius:3px;height:6px;margin-top:8px;overflow:hidden;">
+                        <div id="todayProgressBar" style="height:100%;background:#00b894;width:0%;transition:width .5s;"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:4px;">
+                        <span id="todayPctText" style="color:#00b894;font-weight:700;">0%</span>
+                        <span id="todayRemaining" style="color:var(--muted);">-</span>
+                    </div>
+                </div>
+
+                <!-- 이번 달 -->
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;" onclick="openTargetModal('monthly')" title="클릭해서 월 목표 수정">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;">이번 달 매출</div>
+                        <div style="font-size:9px;color:var(--muted);">✏️ 목표 수정</div>
+                    </div>
+                    <div style="font-size:1.6rem;font-weight:900;color:var(--text);" id="monthRevenue">₩0</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+                        목표 <span id="monthTarget" style="color:var(--text);font-weight:700;">미설정</span>
+                    </div>
+                    <div style="background:var(--border);border-radius:3px;height:6px;margin-top:8px;overflow:hidden;">
+                        <div id="monthProgressBar" style="height:100%;background:#0984e3;width:0%;transition:width .5s;"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:4px;">
+                        <span id="monthPctText" style="color:#0984e3;font-weight:700;">0%</span>
+                        <span id="monthPaceText" style="color:var(--muted);">-</span>
+                    </div>
+                </div>
+
+                <!-- 올해 -->
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;" onclick="openTargetModal('yearly')" title="클릭해서 연 목표 수정">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;">올해 매출</div>
+                        <div style="font-size:9px;color:var(--muted);">✏️ 목표 수정</div>
+                    </div>
+                    <div style="font-size:1.6rem;font-weight:900;color:var(--text);" id="yearRevenue">₩0</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+                        목표 <span id="yearTarget" style="color:var(--text);font-weight:700;">미설정</span>
+                    </div>
+                    <div style="background:var(--border);border-radius:3px;height:6px;margin-top:8px;overflow:hidden;">
+                        <div id="yearProgressBar" style="height:100%;background:#e94560;width:0%;transition:width .5s;"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:4px;">
+                        <span id="yearPctText" style="color:#e94560;font-weight:700;">0%</span>
+                        <span id="yearRemaining" style="color:var(--muted);">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 할 일 + 부가 정보 한 줄 -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;font-size:11px;">
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+                    <div style="color:var(--muted);">오늘 주문</div>
+                    <div style="font-weight:800;color:var(--text);font-size:1.1rem;margin-top:2px;" id="todayOrders">0건</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+                    <div style="color:var(--muted);">이번 달 순이익</div>
+                    <div style="font-weight:800;color:var(--text);font-size:1.1rem;margin-top:2px;" id="monthProfit">₩0</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+                    <div style="color:var(--muted);">이번 달 주문</div>
+                    <div style="font-weight:800;color:var(--text);font-size:1.1rem;margin-top:2px;" id="monthOrders">0건</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+                    <div style="color:var(--muted);">오늘 할 일</div>
+                    <div style="font-weight:800;color:var(--text);font-size:1.1rem;margin-top:2px;" id="todayTaskCount">0/0</div>
+                </div>
+            </div>
+
+            <!-- 목표 설정 모달 -->
+            <div id="targetModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;align-items:center;justify-content:center;">
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:440px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <h3 id="targetModalTitle" style="color:var(--text);font-size:16px;margin:0;">목표 설정</h3>
+                        <button onclick="closeTargetModal()" style="background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;">×</button>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;" id="targetModalHint">-</div>
+                    <input type="number" id="targetInput" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:16px;font-weight:700;margin-bottom:10px;">
+                    <div id="targetPreview" style="font-size:11px;color:var(--muted);margin-bottom:16px;padding:10px;background:var(--bg);border-radius:6px;line-height:1.6;"></div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                        <button onclick="closeTargetModal()" style="background:var(--border);border:none;color:var(--text);padding:10px 16px;border-radius:6px;cursor:pointer;font-size:12px;">취소</button>
+                        <button onclick="saveTarget()" id="saveTargetBtn" style="background:var(--brand);border:none;color:#fff;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;">저장</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2열 레이아웃: 장부 입력 + 할 일 -->
+            <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;">
+                <!-- 좌: 오늘 입력 -->
+                <div>
+                    <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">오늘 숫자 입력 (엔터로 빠르게 이동)</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div>
+                            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">💰 매출 (원)</label>
+                            <input type="number" id="dlRevenue" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;font-weight:700;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">🛒 주문 수 (건)</label>
+                            <input type="number" id="dlOrders" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;font-weight:700;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">📣 광고비 (원)</label>
+                            <input type="number" id="dlAdSpend" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">📈 순이익 (원)</label>
+                            <input type="number" id="dlProfit" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">↩️ 반품 (건)</label>
+                            <input type="number" id="dlReturns" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">💬 CS (건)</label>
+                            <input type="number" id="dlCs" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;">
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">📝 오늘의 메모</label>
+                        <textarea id="dlNote" rows="2" placeholder="특이사항, 교훈, 인사이트..." style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:12px;resize:vertical;"></textarea>
+                    </div>
+                    <div style="font-size:10px;color:var(--muted);margin-top:6px;" id="dlSavedAt"></div>
+                </div>
+
+                <!-- 우: 오늘 할 일 -->
+                <div>
+                    <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✓ 오늘 할 일</div>
+                    <div id="dailyTasksList" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
+                        <div style="color:var(--muted);font-size:12px;padding:10px;">로딩 중...</div>
+                    </div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                        <input id="newTaskInput" placeholder="+ 새 할 일 입력 후 Enter" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:12px;" onkeypress="if(event.key==='Enter')addDailyTask()">
+                        <button onclick="addDailyTask()" style="background:var(--brand);border:none;color:#fff;padding:9px 14px;border-radius:8px;cursor:pointer;font-size:13px;">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 최근 7일 미니 그래프 -->
+            <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;">최근 7일 매출 추이</div>
+                    <div style="font-size:10px;color:var(--muted);" id="week7Summary">-</div>
+                </div>
+                <div id="week7Chart" style="display:flex;align-items:flex-end;gap:6px;height:80px;"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- 📋 거래 원장 (세무 증빙) -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div data-tabpanel="orders" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">📋 거래 원장</div>
+                    <div style="font-size:1.2rem;font-weight:800;margin-top:2px;">세무 증빙용 전체 주문 내역</div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <select id="lgMonth" onchange="loadLedgerOrders()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;">
+                        <option value="">전체 월</option>
+                    </select>
+                    <select id="lgPlatform" onchange="loadLedgerOrders()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;">
+                        <option value="">전체 플랫폼</option>
+                        <option value="쿠팡">쿠팡</option>
+                        <option value="스마트스토어">스마트스토어</option>
+                        <option value="네이버">네이버</option>
+                        <option value="11번가">11번가</option>
+                        <option value="g마켓">g마켓</option>
+                    </select>
+                    <input id="lgSearch" placeholder="상품/구매자/통관번호 검색" onkeypress="if(event.key==='Enter')loadLedgerOrders()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;width:200px;">
+                    <button onclick="exportLedgerCsv()" style="background:var(--brand);border:none;color:#fff;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">📥 CSV 내보내기</button>
+                </div>
+            </div>
+            <div id="lgStats" style="display:flex;gap:16px;padding:12px;background:var(--bg);border-radius:8px;margin-bottom:12px;font-size:12px;color:var(--muted);">로딩 중...</div>
+            <div style="overflow-x:auto;max-height:600px;overflow-y:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:11px;" id="lgTable">
+                    <thead style="position:sticky;top:0;background:var(--card);z-index:1;">
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="padding:8px;text-align:left;">주문일</th>
+                            <th style="padding:8px;text-align:left;">플랫폼</th>
+                            <th style="padding:8px;text-align:left;">주문번호</th>
+                            <th style="padding:8px;text-align:left;">상품명</th>
+                            <th style="padding:8px;text-align:left;">구매자</th>
+                            <th style="padding:8px;text-align:left;">통관번호</th>
+                            <th style="padding:8px;text-align:right;">결제금액</th>
+                            <th style="padding:8px;text-align:right;">정산예정</th>
+                            <th style="padding:8px;text-align:right;">플랫폼수수료</th>
+                            <th style="padding:8px;text-align:right;">원가</th>
+                            <th style="padding:8px;text-align:right;">수익금</th>
+                            <th style="padding:8px;text-align:center;">과세구분</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lgTbody"><tr><td colspan="12" style="padding:20px;text-align:center;color:var(--muted);">로딩 중...</td></tr></tbody>
+                </table>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:8px;padding:8px;background:rgba(243,156,18,.05);border-left:2px solid #f39c12;border-radius:4px;">
+                ⚠ <strong>[확인 필요]</strong> 세무사와 과세구조(단순대행/위탁매매) 확정 후 과세구분 일괄 설정 권장. 플랫폼 수수료는 쿠팡 11% / 네이버·스마트스토어 4%로 자동 추정됨 (실제 정산내역서로 보정 필요).
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- 💰 월별 세무 집계 -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div data-tabpanel="tax" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">💰 월별 세무 집계</div>
+                    <div style="font-size:1.2rem;font-weight:800;margin-top:2px;">부가세 신고용 월별 집계</div>
+                </div>
+                <select id="taxMonth" onchange="loadTaxMonthly()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;"></select>
+            </div>
+            <div id="taxSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+            <div id="taxVatBox" style="background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.3);border-radius:10px;padding:14px;margin-bottom:16px;"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div>
+                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px;">플랫폼별</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;" id="taxByPlatform">
+                        <thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:6px;text-align:left;">플랫폼</th><th style="padding:6px;text-align:right;">건수</th><th style="padding:6px;text-align:right;">매출</th><th style="padding:6px;text-align:right;">수익</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px;">과세구분별</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;" id="taxByCategory">
+                        <thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:6px;text-align:left;">구분</th><th style="padding:6px;text-align:right;">건수</th><th style="padding:6px;text-align:right;">매출</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if page != 'ledger' %}
+        <!-- 경영 전략 (AI 전략 제안 + 대표 실행 도구) -->
+        <div id="csoPanel" style="background:linear-gradient(135deg,#2c1810 0%,#1a0a0a 50%,#3d1f1f 100%);border-radius:16px;padding:28px;margin-bottom:24px;color:#fff;position:relative;overflow:hidden;border:1px solid rgba(233,69,96,.3);">
+            <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#e94560,#f39c12);"></div>
+
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                <div style="flex:1;">
+                    <div style="font-size:11px;color:#f39c12;font-weight:800;letter-spacing:1.5px;margin-bottom:6px;">🎯 경영 전략 — 2년 안에 500억, 10년 안에 2조</div>
+                    <div style="font-size:1.4rem;font-weight:900;line-height:1.35;" id="csoHeadline">AI가 전략을 세우고 있습니다...</div>
+                </div>
+                <button onclick="refreshCSO()" title="AI가 현재 시장/데이터를 다시 분석하여 새로운 전략을 제안합니다. 기존에 채택한 포트폴리오는 삭제되지 않습니다."
+                    style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                    <span>🔄</span><span>AI에게 새 전략 제안받기</span>
+                </button>
+            </div>
+
+            <!-- 도움말 한 줄 -->
+            <div style="background:rgba(88,166,255,.06);border-left:2px solid #58a6ff;padding:8px 12px;border-radius:4px;margin-bottom:16px;font-size:11px;color:#c9d1d9;line-height:1.5;">
+                💡 아래 <strong>주력 카테고리 카드를 클릭</strong>하면 목표(SKU 수, 매출, 마진)를 설정할 수 있고, 실제 등록된 상품이 자동으로 집계됩니다.
+            </div>
+
+            <!-- 현실성 점검 + 숫자 검증 -->
+            <div id="csoRealityStrip" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                <div id="csoRealityBox" style="background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.3);border-radius:10px;padding:12px 14px;">
+                    <div style="font-size:10px;color:#e94560;font-weight:800;letter-spacing:1px;margin-bottom:4px;">⚠ 현실성 점검 · 이 전략이 진짜 가능한가?</div>
+                    <div id="csoFeasibility" style="font-size:11px;color:#c9d1d9;line-height:1.5;">AI가 검증 중...</div>
+                </div>
+                <div id="csoMathBox" style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:12px 14px;">
+                    <div style="font-size:10px;color:#3fb950;font-weight:800;letter-spacing:1px;margin-bottom:4px;">📐 숫자 검증 · 목표까지 얼마나 남았나?</div>
+                    <div id="csoMathVerify" style="font-size:11px;color:#c9d1d9;line-height:1.5;">계산 중...</div>
+                </div>
+            </div>
+
+            <!-- 주력 카테고리 (TOP 3) -->
+            <div style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:11px;color:#f39c12;font-weight:700;letter-spacing:1.2px;">🏆 주력 카테고리 TOP 3 — 클릭해서 목표 설정</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,.4);">💡 AI 추천 · 대표님이 직접 수정 가능</div>
+                </div>
+                <div id="csoCategories" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+                    <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:14px;">
+                        <div style="font-size:10px;color:rgba(255,255,255,.5);">로딩 중...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 이번 주 해야 할 일 + 전체 달성률 -->
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+                <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:16px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <div style="font-size:11px;color:#58a6ff;font-weight:700;letter-spacing:1.2px;">📋 이번 주 해야 할 일</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,.4);">체크박스를 눌러 완료 표시</div>
+                    </div>
+                    <div id="csoWeekActions" style="font-size:12px;color:#c9d1d9;line-height:1.8;">
+                        <div style="color:rgba(255,255,255,.5);">로딩 중...</div>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:16px;">
+                    <div style="font-size:11px;color:#3fb950;font-weight:700;letter-spacing:1.2px;margin-bottom:10px;">📈 2년 목표 달성률</div>
+                    <div id="csoProjection" style="font-size:1.2rem;font-weight:900;color:#3fb950;">-</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:4px;">주력 카테고리 예상 매출의 합</div>
+                    <div style="background:rgba(255,255,255,.1);border-radius:4px;height:6px;margin-top:8px;overflow:hidden;">
+                        <div id="csoProgressBar" style="height:100%;background:linear-gradient(90deg,#3fb950,#58a6ff);width:0%;transition:width 1s;"></div>
+                    </div>
+                    <div id="csoProgressText" style="font-size:10px;color:#3fb950;margin-top:6px;font-weight:700;">0%</div>
+                </div>
+            </div>
+
+            <!-- 10년 성장 단계 -->
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:11px;color:#f39c12;font-weight:700;letter-spacing:1.2px;">🏔 10년 성장 단계 — 구매대행에서 기업가치 2조원까지</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,.4);">각 단계별 매출/팀 규모 목표</div>
+                </div>
+                <div id="csoStages" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+                    <div style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px;font-size:10px;color:rgba(255,255,255,.4);">로딩 중...</div>
+                </div>
+                <div id="csoHonestAssessment" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.6);font-style:italic;"></div>
+            </div>
+
+            <!-- 성공 조건 -->
+            <div id="csoSuccessFactors" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1);font-size:11px;color:rgba(255,255,255,.7);">
+                <strong style="color:#f39c12;">✓ 목표 달성에 꼭 필요한 조건:</strong> <span id="csoFactors">-</span>
+            </div>
+
+            <!-- 하단 간단 사용법 안내 -->
+            <div style="margin-top:14px;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:8px;font-size:10px;color:rgba(255,255,255,.5);line-height:1.6;">
+                <strong style="color:#58a6ff;">📖 이 화면 사용법</strong> ·
+                ① 주력 카테고리 카드를 클릭하여 목표(SKU/매출/마진) 설정 ·
+                ② 이번 주 할 일을 체크박스로 관리 ·
+                ③ "AI에게 새 전략 제안받기"로 시장 변화에 맞춰 업데이트 ·
+                ④ 실제 등록된 상품이 자동으로 포트폴리오에 연결됨
+            </div>
+        </div>
+
+        <!-- 트렌드 인텔리전스 (100억 매출 목표) -->
+        <div id="trendIntel" style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);border-radius:16px;padding:24px;margin-bottom:24px;color:#fff;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#e94560,#f39c12,#58a6ff,#3fb950);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div>
+                    <div style="font-size:11px;color:#e94560;font-weight:800;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">📈 TREND INTELLIGENCE</div>
+                    <div style="font-size:1.3rem;font-weight:900;" id="trendHeadline">트렌드 분석 로딩 중...</div>
+                </div>
+                <button onclick="refreshTrends()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;">새로고침</button>
+            </div>
+
+            <!-- 매크로 축 3개 -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;" id="macroAxes">
+                <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:14px;border:1px solid rgba(255,255,255,.1);">
+                    <div style="font-size:10px;color:rgba(255,255,255,.5);">로딩 중...</div>
+                </div>
+            </div>
+
+            <!-- 고마진 TOP 3 -->
+            <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:16px;">
+                <div style="font-size:11px;color:#f39c12;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">💰 고마진 상품 TOP 3 (순이익 70%+)</div>
+                <div id="highMarginList" style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="font-size:12px;color:rgba(255,255,255,.5);">분석 중...</div>
+                </div>
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1);font-size:11px;color:rgba(255,255,255,.6);">
+                    총 예상 기회: <span id="totalOpportunity" style="color:#3fb950;font-weight:800;">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI -->
+        <div class="kpi-row">
+            <div class="kpi-box" onclick="location.href='/review/list'" style="cursor:pointer;">
+                <div class="num" id="kTotal" style="color:var(--text);">-</div>
+                <div class="label">전체 상품</div>
+            </div>
+            <div class="kpi-box" onclick="location.href='/review/list'" style="cursor:pointer;">
+                <div class="num" id="kPending" style="color:#fdcb6e;">-</div>
+                <div class="label">검토 대기</div>
+            </div>
+            <div class="kpi-box" onclick="location.href='/review/list'" style="cursor:pointer;">
+                <div class="num" id="kApproved" style="color:#00b894;">-</div>
+                <div class="label">승인됨</div>
+            </div>
+            <div class="kpi-box" onclick="location.href='/bi'" style="cursor:pointer;">
+                <div class="num" id="kAlerts" style="color:#d63031;">-</div>
+                <div class="label">주의 필요</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 메인: 업무 흐름 -->
+            <div class="col-lg-8">
+                <h5 style="color:var(--muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">업무 흐름</h5>
+
+                <!-- Step 1: 상품 발견 -->
+                <div class="step-card" onclick="location.href='/coo'">
+                    <div class="step-num">01</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="icon" style="background:#dfe6e9;">🔍</div>
+                        <div>
+                            <h3>상품 발견</h3>
+                            <p>Daily Scout가 매일 4개국 트렌드를 스캔합니다. COO 브리핑에서 위닝 후보를 확인하세요.</p>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="status-dot dot-green"></span>
+                                <small style="color:var(--muted);">Daily Scout 자동 실행 중</small>
+                                <span class="badge-count" id="scoutCount">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: 소싱 검증 → 워크벤치 -->
+                <div class="step-card" onclick="location.href='/workbench'">
+                    <div class="step-num">02</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="icon" style="background:#ffeaa7;">📊</div>
+                        <div>
+                            <h3>소싱 검증</h3>
+                            <p>상품 URL을 입력하면 리스크 분석 + 마진 계산 + SEO 최적화를 자동으로 수행합니다.</p>
+                            <button class="btn btn-dark btn-sm" onclick="event.stopPropagation();location.href='/workbench'">워크벤치에서 시작하기</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: 검토 & 승인 -->
+                <div class="step-card" onclick="location.href='/review/list'">
+                    <div class="step-num">03</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="icon" style="background:#a29bfe;">✅</div>
+                        <div>
+                            <h3>검토 & 승인</h3>
+                            <p>AI가 분석한 결과를 확인하고 승인/보류/거부를 결정합니다. 80점 이상은 자동 승인됩니다.</p>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="badge-count" id="reviewCount">-</span>
+                                <small style="color:var(--muted);">건의 검토가 필요합니다</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: 상세페이지 제작 -->
+                <div class="step-card" onclick="location.href='/redesign/queue'">
+                    <div class="step-num">04</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="icon" style="background:#fd79a8;">🎨</div>
+                        <div>
+                            <h3>상세페이지 제작</h3>
+                            <p>이미지를 업로드하면 AI가 Fortimove 브랜드 톤에 맞춰 상세페이지를 리디자인합니다.</p>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-dark btn-sm" onclick="event.stopPropagation();location.href='/redesign/queue'">이미지 업로드</button>
+                                <small class="d-flex align-items-center" style="color:var(--muted);">Imagen 4.0 + AI 편집기</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 사이드바 — 참고 정보만 (할 일/매출 관리는 상단 일일 장부에서) -->
+            <div class="col-lg-4">
+                <!-- 마진 경고 -->
+                <div class="sidebar-card">
+                    <h4 style="color:#d63031;">⚠ 마진 경고</h4>
+                    <div id="marginAlerts">
+                        <div style="color:var(--muted);font-size:0.85rem;">로딩 중...</div>
+                    </div>
+                </div>
+
+                <!-- 시장 인텔리전스 — 미사용 기능 제거 (구매대행 집중) -->
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 소싱 모달 제거 → 워크벤치로 통합 -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // ── 데이터 로드 ──────────────────────────────
+    async function loadDashboard() {
+        // KPI
+        try {
+            const res = await fetch('/api/stats');
+            const d = await res.json();
+            document.getElementById('kTotal').textContent = d.total || 0;
+            document.getElementById('kPending').textContent = d.pending || 0;
+            document.getElementById('kApproved').textContent = d.approved || 0;
+            document.getElementById('kAlerts').textContent = (d.needs_edit || 0) + (d.rejected || 0);
+            document.getElementById('reviewCount').textContent = d.pending || 0;
+        } catch(e) {}
+
+        // COO 브리핑
+        try {
+            const res = await fetch('/api/coo/snapshot');
+            const d = await res.json();
+            const q = d.queue || {};
+            const winners = d.top_margin_products?.length || 0;
+            document.getElementById('cooHeadline').textContent =
+                `전체 ${q.total || 0}건 | 승인 ${q.approved || 0} | 대기 ${q.pending || 0} | 위닝 후보 ${winners}건`;
+            document.getElementById('cooSub').textContent = '실시간 시스템 현황';
+            document.getElementById('scoutCount').textContent = `${q.total || 0}건`;
+        } catch(e) {
+            document.getElementById('cooHeadline').textContent = '브리핑을 불러올 수 없습니다';
+        }
+
+        // 마진 경고
+        try {
+            const res = await fetch('/api/coo/margin-alerts');
+            const d = await res.json();
+            const el = document.getElementById('marginAlerts');
+            if (d.count > 0) {
+                el.innerHTML = d.alerts.slice(0, 3).map(a =>
+                    `<div class="alert-item"><span class="status-dot dot-red"></span>${a.title?.slice(0,25)} — ${a.message}</div>`
+                ).join('');
+            } else {
+                el.innerHTML = '<div style="color:#00b894;font-size:0.85rem;">마진 경고 없음</div>';
+            }
+        } catch(e) {}
+
+        // (오늘의 할 일은 상단 일일 장부 섹션으로 이동됨)
+    }
+
+    // ── 트렌드 인텔리전스 로드 ──────────────────
+    async function loadTrendIntelligence(forceRefresh = false) {
+        try {
+            // 매크로 트렌드
+            const macroRes = await fetch(`/api/bi/trends/macro${forceRefresh ? '?force_refresh=true' : ''}`);
+            const macro = await macroRes.json();
+
+            document.getElementById('trendHeadline').textContent = macro.summary || '100억 매출 기회 분석 중';
+
+            const axes = (macro.macro_axes || []).slice(0, 3);
+            if (axes.length > 0) {
+                document.getElementById('macroAxes').innerHTML = axes.map(a => {
+                    const priorityColor = a.action_priority === 'P0' ? '#e94560' : a.action_priority === 'P1' ? '#f39c12' : '#58a6ff';
+                    return `<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:14px;border:1px solid rgba(255,255,255,.1);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <div style="font-size:11px;color:${priorityColor};font-weight:800;">${a.action_priority || 'P2'}</div>
+                            <div style="font-size:10px;color:rgba(255,255,255,.5);">${a.growth_rate || ''}</div>
+                        </div>
+                        <div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:4px;">${a.name || ''}</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;">${a.korean_name || ''}</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,.5);line-height:1.4;">${(a.description || '').substring(0, 80)}</div>
+                    </div>`;
+                }).join('');
+            }
+
+            // 고마진 상품
+            const marginRes = await fetch(`/api/bi/trends/high-margin${forceRefresh ? '?force_refresh=true' : ''}`);
+            const marginData = await marginRes.json();
+            const products = (marginData.high_margin_products || []).slice(0, 3);
+
+            if (products.length > 0) {
+                document.getElementById('highMarginList').innerHTML = products.map((p, i) => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i+1}. ${p.product_name || '-'}</div>
+                            <div style="font-size:10px;color:rgba(255,255,255,.5);">${p.category || ''} | 구독: ${p.subscription_potential || '-'}</div>
+                        </div>
+                        <div style="text-align:right;margin-left:12px;">
+                            <div style="font-size:15px;font-weight:900;color:#3fb950;">${p.estimated_margin_rate || 0}%</div>
+                            <div style="font-size:10px;color:rgba(255,255,255,.5);">월 ₩${(p.estimated_monthly_profit_krw || 0).toLocaleString()}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const totalOpp = marginData.total_opportunity_krw || 0;
+            document.getElementById('totalOpportunity').textContent = totalOpp > 0 ? `₩${totalOpp.toLocaleString()} /월` : '-';
+        } catch (e) {
+            console.error('트렌드 로드 실패:', e);
+            document.getElementById('trendHeadline').textContent = '트렌드 분석을 불러올 수 없습니다';
+        }
+    }
+
+    window.refreshTrends = () => loadTrendIntelligence(true);
+
+    // ── CSO 전략 브리프 로드 ──────────────────
+    const ANNUAL_TARGET_2YR = 50_000_000_000;  // 500억
+    const fmt억 = (v) => '₩' + (Number(v || 0) / 100_000_000).toFixed(0) + '억';
+
+    async function loadCSOStrategy(forceRefresh = false) {
+        try {
+            // 카테고리 제언 로드
+            const catRes = await fetch(`/api/bi/cso/categories${forceRefresh ? '?force_refresh=true' : ''}`);
+            const categories = await catRes.json();
+
+            // Headline + 웰니스 잠금 배지
+            const wellnessLocked = categories.wellness_compliance_check;
+            const lockBadge = wellnessLocked
+                ? '<span style="display:inline-block;font-size:9px;font-weight:800;color:#3fb950;background:rgba(63,185,80,.15);border:1px solid #3fb950;padding:2px 6px;border-radius:4px;margin-left:8px;vertical-align:middle;">🔒 웰니스 범주 잠금</span>'
+                : '<span style="display:inline-block;font-size:9px;font-weight:800;color:#e94560;background:rgba(233,69,96,.15);border:1px solid #e94560;padding:2px 6px;border-radius:4px;margin-left:8px;vertical-align:middle;">⚠ 범주 이탈</span>';
+            document.getElementById('csoHeadline').innerHTML =
+                (categories.executive_summary || '500억/2조 전략 준비 중') + lockBadge;
+
+            // 현실성 점검 (쉬운 용어)
+            const reality = categories.reality_check || {};
+            const feasibility = reality.feasibility_assessment || '분석 중';
+            const teamNeeded = reality.required_team_size || '-';
+            const mktBudget = reality.required_marketing_budget_monthly_krw || 0;
+            const aiLeverageFactor = reality.ai_leverage_factor || '';
+            const isHighFeas = /매우 높음|높음/.test(feasibility);
+            const feasColor = isHighFeas ? '#3fb950' : '#f39c12';
+            document.getElementById('csoFeasibility').innerHTML =
+                `<div style="color:${feasColor};font-weight:700;margin-bottom:4px;">달성 가능성: ${feasibility}</div>` +
+                (aiLeverageFactor ? `<div style="font-size:10px;color:#58a6ff;font-weight:700;margin-bottom:3px;">⚡ ${aiLeverageFactor}</div>` : '') +
+                `<div style="font-size:10px;color:rgba(255,255,255,.55);">필요 인력 ${teamNeeded} · 월 광고비 ${fmt억(mktBudget)}</div>`;
+
+            // 숫자 검증 (쉬운 용어)
+            const math = categories.math_verification || {};
+            const actualAnnual = math.actual_annual_sum_krw || 0;
+            const targetAnnual = math.target_annual_krw || ANNUAL_TARGET_2YR;
+            const rate = math.achievement_rate_pct || 0;
+            const verdict = math.verdict || '-';
+            const verdictColor = verdict === '달성 가능' ? '#3fb950' : '#e94560';
+            document.getElementById('csoMathVerify').innerHTML =
+                `<div>AI가 계산한 예상 연매출: <strong style="color:#fff;">${fmt억(actualAnnual)}</strong> / 목표 ${fmt억(targetAnnual)}</div>` +
+                `<div style="margin-top:4px;">목표 달성률 <strong style="color:${verdictColor};">${rate}%</strong> · <span style="color:${verdictColor};font-weight:700;">${verdict}</span></div>`;
+
+            // TOP 3 카테고리
+            const portfolio = (categories.recommended_portfolio || []).slice(0, 3);
+            const priorityColors = { 'S': '#e94560', 'A': '#f39c12', 'B': '#58a6ff', 'C': '#8b949e' };
+
+            if (portfolio.length > 0) {
+                // 저장된 포트폴리오 조회 (실적 표시용)
+                let adoptedMap = {};
+                try {
+                    const adopted = await fetch('/api/cso/portfolios').then(r => r.json());
+                    (adopted.portfolios || []).forEach(ap => adoptedMap[ap.name] = ap);
+                } catch(e){}
+
+                window._csoSuggestions = portfolio;
+
+                document.getElementById('csoCategories').innerHTML = portfolio.map((p, idx) => {
+                    const prio = p.priority || p.grade || '?';
+                    const color = priorityColors[prio] || '#8b949e';
+                    const monthlyRev = p.category_monthly_revenue_krw || 0;
+                    const margin = p.expected_margin_rate || 0;
+                    const marginPct = margin < 1 ? (margin * 100).toFixed(0) : margin;
+                    const aiStrat = (p.ai_leverage_strategy || '').substring(0, 70);
+                    const pivotPlan = (p.pivot_plan || '').substring(0, 60);
+                    const categoryName = p.category || '-';
+                    const adopted = adoptedMap[categoryName];
+                    const isAdopted = !!adopted;
+                    const prog = adopted?.progress || {};
+                    const registered = prog.registered_sku || 0;
+                    const targetSku = adopted?.target_sku || p.target_skus || 0;
+                    const progressPct = targetSku > 0 ? Math.round(registered / targetSku * 100) : 0;
+
+                    return `<div class="cso-portfolio-card" data-idx="${idx}" style="background:rgba(255,255,255,.05);border-radius:10px;padding:14px;border-left:3px solid ${color};cursor:pointer;transition:all .2s;position:relative;" onclick="openPortfolioModal(${idx})"
+                        onmouseover="this.style.background='rgba(255,255,255,.08)';this.style.transform='translateY(-2px)';"
+                        onmouseout="this.style.background='rgba(255,255,255,.05)';this.style.transform='translateY(0)';">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-size:10px;font-weight:900;color:${color};padding:2px 8px;background:${color}22;border-radius:4px;">${prio}급 ${isAdopted?'· 채택됨':''}</span>
+                            <span style="font-size:10px;color:rgba(255,255,255,.5);">마진 ${marginPct}%</span>
+                        </div>
+                        <div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:6px;">${categoryName}</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:6px;line-height:1.4;">${(p.rationale || '').substring(0, 80)}</div>
+                        ${aiStrat ? `<div style="font-size:10px;color:#58a6ff;margin-bottom:4px;line-height:1.35;">⚡ ${aiStrat}</div>` : ''}
+                        ${pivotPlan ? `<div style="font-size:10px;color:#a371f7;margin-bottom:6px;line-height:1.35;">↪ 대안: ${pivotPlan}</div>` : ''}
+                        ${isAdopted ? `
+                        <div style="margin:8px 0 6px;background:rgba(255,255,255,.03);border-radius:6px;padding:6px 8px;">
+                            <div style="display:flex;justify-content:space-between;font-size:10px;color:#c9d1d9;margin-bottom:3px;">
+                                <span>실제 진행률</span><span style="color:${progressPct>=50?'#3fb950':'#f39c12'};font-weight:800;">${progressPct}%</span>
+                            </div>
+                            <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;">
+                                <div style="height:100%;background:${progressPct>=50?'#3fb950':'#f39c12'};width:${Math.min(progressPct,100)}%;transition:width .5s;"></div>
+                            </div>
+                            <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:3px;">등록 ${registered}개 / 목표 ${targetSku}개 · 승인 ${prog.approved_sku || 0}개</div>
+                        </div>
+                        ` : `<div style="font-size:10px;color:#f39c12;margin:8px 0 6px;padding:6px 8px;background:rgba(243,156,18,.1);border-radius:4px;text-align:center;">👆 클릭해서 목표 설정하기</div>`}
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.5);">
+                            <span>목표 SKU ${targetSku}개</span>
+                            <span style="color:#3fb950;font-weight:700;">월 매출 ${fmt억(monthlyRev)}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            // 2년 목표 달성률 (math_verification 기반)
+            const progress = Math.min(100, rate);
+            document.getElementById('csoProjection').textContent = fmt억(actualAnnual);
+            document.getElementById('csoProgressBar').style.width = progress + '%';
+            document.getElementById('csoProgressBar').style.background =
+                rate >= 80 ? 'linear-gradient(90deg,#3fb950,#58a6ff)' : 'linear-gradient(90deg,#e94560,#f39c12)';
+            document.getElementById('csoProgressText').textContent = rate.toFixed(1) + '% · ' + verdict;
+            document.getElementById('csoProgressText').style.color = verdictColor;
+
+            // 성공 조건
+            const factors = categories.critical_success_factors || [];
+            document.getElementById('csoFactors').textContent = factors.slice(0, 3).join(' · ') || '-';
+
+            // 이번 주 액션 — 대표가 직접 관리하는 체크리스트로 변경
+            loadWeekActions();
+
+            // 90일 로드맵은 AI 참고용 (처음 로드 시에만)
+            try {
+                const roadmapRes = await fetch(`/api/bi/cso/roadmap-90day${forceRefresh ? '?force_refresh=true' : ''}`);
+                const roadmap = await roadmapRes.json();
+                const phase1 = roadmap.phase1_days_1_30 || {};
+                // AI 제안을 힌트 텍스트로만 (액션 리스트는 DB 기반)
+                const week1Actions = phase1.week_1_actions || [];
+                if (week1Actions.length > 0) {
+                    const hint = document.getElementById('csoAiHint');
+                    if (!hint) {
+                        const container = document.getElementById('csoWeekActions');
+                        if (container && container.parentElement) {
+                            const hintDiv = document.createElement('div');
+                            hintDiv.id = 'csoAiHint';
+                            hintDiv.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1);font-size:10px;color:rgba(255,255,255,.4);';
+                            hintDiv.innerHTML = '<div style="font-size:9px;color:#f39c12;margin-bottom:4px;">💡 AI 제안</div>' +
+                                week1Actions.slice(0,3).map(a=>`<div style="padding:1px 0;">· ${a}</div>`).join('');
+                            container.parentElement.appendChild(hintDiv);
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            // 10년 비전 로드
+            const visionRes = await fetch(`/api/bi/cso/10year-vision${forceRefresh ? '?force_refresh=true' : ''}`);
+            const vision = await visionRes.json();
+            const stageKeys = ['stage_1_years_1_2','stage_2_years_3_4','stage_3_years_5_6','stage_4_years_7_8','stage_5_years_9_10'];
+            const stageLabels = ['1~2년차','3~4년차','5~6년차','7~8년차','9~10년차'];
+            const stageSubtitles = ['기반 구축', '확장 전환', '브랜드화', '글로벌', 'Exit 준비'];
+            const stageColors = ['#58a6ff','#3fb950','#f39c12','#e94560','#a371f7'];
+
+            const stageHtml = stageKeys.map((k, i) => {
+                const s = vision[k] || {};
+                const rev = s.target_annual_revenue_krw || 0;
+                const val = s.target_valuation_krw || 0;
+                const team = s.team_size || '-';
+                const goal = s.name || stageSubtitles[i];
+                const tooltip = `${stageLabels[i]} · ${goal}\n` +
+                    (rev > 0 ? `연 매출 목표: ${fmt억(rev)}\n` : '') +
+                    (val > 0 ? `기업가치 목표: ${fmt억(val)}\n` : '') +
+                    `팀 규모: ${team}명`;
+
+                return `<div title="${tooltip.replace(/"/g,'&quot;')}" style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px;border-top:2px solid ${stageColors[i]};cursor:help;transition:all .2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,.08)';"
+                    onmouseout="this.style.background='rgba(255,255,255,.04)';">
+                    <div style="font-size:9px;color:${stageColors[i]};font-weight:800;letter-spacing:1px;">${stageLabels[i]}</div>
+                    <div style="font-size:11px;font-weight:800;color:#fff;margin:4px 0;">${goal.substring(0, 14)}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,.6);line-height:1.5;">
+                        연매출 ${fmt억(rev)}<br>
+                        ${val > 0 ? '기업가치 ' + fmt억(val) + '<br>' : ''}
+                        팀 ${team}명
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('csoStages').innerHTML = stageHtml;
+
+            const visionNarrative = vision.aggressive_assessment || vision.ai_leverage_narrative || vision.honest_assessment;
+            if (visionNarrative) {
+                document.getElementById('csoHonestAssessment').textContent = '⚡ ' + visionNarrative;
+            }
+
+        } catch (e) {
+            console.error('CSO load error:', e);
+            document.getElementById('csoHeadline').textContent = '전략 로드 실패 — 재시도하세요';
+        }
+    }
+
+    window.refreshCSO = async function() {
+        const confirmed = confirm(
+            "AI가 현재 시장 데이터와 트렌드를 다시 분석하여 새로운 주력 카테고리 3개를 제안합니다.\n\n" +
+            "• 소요 시간: 약 30초~1분\n" +
+            "• AI 비용: 약 ₩200~500 (Gemini 기준)\n" +
+            "• 기존에 채택한 포트폴리오는 삭제되지 않습니다\n" +
+            "• 새 제안은 TOP 3 카드에만 표시됩니다\n\n" +
+            "진행하시겠습니까?"
+        );
+        if (!confirmed) return;
+
+        // 로딩 표시
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span><span>AI 분석 중... (30초~1분)</span>';
+
+        try {
+            await loadCSOStrategy(true);
+            btn.innerHTML = '<span>✓</span><span>새 전략 생성됨</span>';
+            setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
+        } catch (e) {
+            alert('전략 생성 실패: ' + e.message);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    };
+
+    // ═══════════════════════════════════════════════
+    // CSO 포트폴리오 모달 (채택/수정/실적)
+    // ═══════════════════════════════════════════════
+    window.openPortfolioModal = async function(idx) {
+        const sugg = (window._csoSuggestions || [])[idx];
+        if (!sugg) return;
+
+        // 기존 채택 확인
+        let adopted = null;
+        try {
+            const r = await fetch('/api/cso/portfolios').then(x => x.json());
+            adopted = (r.portfolios || []).find(p => p.name === (sugg.category || ''));
+        } catch(e){}
+
+        // 기본값 설정 (AI 제안 또는 채택된 값)
+        const name = adopted?.name || sugg.category || '';
+        const grade = adopted?.grade || sugg.priority || sugg.grade || 'A';
+        const keywords = adopted?.category_keywords?.length ? adopted.category_keywords.join(', ') : (sugg.category || '');
+        const targetSku = adopted?.target_sku || sugg.target_skus || 0;
+        const targetMargin = adopted?.target_margin_rate || (sugg.expected_margin_rate < 1 ? sugg.expected_margin_rate * 100 : sugg.expected_margin_rate) || 0;
+        const targetRev = adopted?.target_monthly_revenue || sugg.category_monthly_revenue_krw || 0;
+        const desc = adopted?.description || sugg.rationale || '';
+        const aiRec = sugg.ai_leverage_strategy || '';
+        const pivot = sugg.pivot_plan || '';
+
+        // 실제 매핑된 상품 조회
+        let products = [];
+        if (adopted) {
+            try {
+                const pr = await fetch(`/api/cso/portfolios/${adopted.id}/products`).then(x => x.json());
+                products = pr.products || [];
+            } catch(e){}
+        }
+
+        const progress = adopted?.progress || {registered_sku:0,approved_sku:0,content_done:0,redesign_done:0,sku_progress_pct:0};
+        const fmtK = n => '₩' + (n/100000000).toFixed(1) + '억';
+
+        const html = `
+        <div style="background:#0d1117;border:1px solid #30363d;border-radius:12px;padding:24px;width:90%;max-width:720px;max-height:90vh;overflow-y:auto;color:#c9d1d9;">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+                <div>
+                    <div style="font-size:10px;color:#e94560;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;">${adopted ? '채택된 포트폴리오' : '신규 포트폴리오'}</div>
+                    <h2 style="color:#fff;font-size:20px;margin-top:4px;">${name}</h2>
+                </div>
+                <button onclick="closePortfolioModal()" style="background:none;border:none;color:#8b949e;font-size:28px;cursor:pointer;">×</button>
+            </div>
+
+            ${adopted ? `
+            <!-- 실제 진행률 -->
+            <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px;margin-bottom:20px;">
+                <div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📊 실제 진행 현황</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;">
+                    <div>
+                        <div style="font-size:1.5rem;font-weight:900;color:#58a6ff;">${progress.registered_sku}</div>
+                        <div style="font-size:10px;color:#8b949e;">등록</div>
+                    </div>
+                    <div>
+                        <div style="font-size:1.5rem;font-weight:900;color:#3fb950;">${progress.approved_sku}</div>
+                        <div style="font-size:10px;color:#8b949e;">승인</div>
+                    </div>
+                    <div>
+                        <div style="font-size:1.5rem;font-weight:900;color:#a371f7;">${progress.content_done}</div>
+                        <div style="font-size:10px;color:#8b949e;">콘텐츠</div>
+                    </div>
+                    <div>
+                        <div style="font-size:1.5rem;font-weight:900;color:#f39c12;">${progress.redesign_done}</div>
+                        <div style="font-size:10px;color:#8b949e;">리디자인</div>
+                    </div>
+                </div>
+                <div style="margin-top:14px;">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+                        <span style="color:#8b949e;">SKU 진행률</span>
+                        <span style="color:#fff;font-weight:700;">${progress.sku_progress_pct}%</span>
+                    </div>
+                    <div style="height:6px;background:#30363d;border-radius:3px;overflow:hidden;">
+                        <div style="height:100%;background:linear-gradient(90deg,#58a6ff,#3fb950);width:${Math.min(progress.sku_progress_pct,100)}%;"></div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- 편집 가능한 목표 -->
+            <div style="margin-bottom:16px;">
+                <div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎯 목표 설정 (수정 가능)</div>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+                    <div>
+                        <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:4px;">포트폴리오명</label>
+                        <input id="pfName" value="${name}" style="width:100%;background:#161b22;border:1px solid #30363d;color:#fff;padding:8px;border-radius:6px;font-size:12px;">
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:4px;">등급</label>
+                        <select id="pfGrade" style="width:100%;background:#161b22;border:1px solid #30363d;color:#fff;padding:8px;border-radius:6px;font-size:12px;">
+                            <option value="S" ${grade==='S'?'selected':''}>S급</option>
+                            <option value="A" ${grade==='A'?'selected':''}>A급</option>
+                            <option value="B" ${grade==='B'?'selected':''}>B급</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:4px;">목표 SKU 수</label>
+                        <input id="pfSku" type="number" value="${targetSku}" style="width:100%;background:#161b22;border:1px solid #30363d;color:#fff;padding:8px;border-radius:6px;font-size:12px;">
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:4px;">목표 마진율 (%)</label>
+                        <input id="pfMargin" type="number" value="${targetMargin}" step="0.1" style="width:100%;background:#161b22;border:1px solid #30363d;color:#fff;padding:8px;border-radius:6px;font-size:12px;">
+                    </div>
+                    <div style="grid-column:span 2;">
+                        <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:4px;">월 매출 목표 (원) · 현재 ${fmtK(targetRev)}</label>
+                        <input id="pfRev" type="number" value="${targetRev}" step="10000000" style="width:100%;background:#161b22;border:1px solid #30363d;color:#fff;padding:8px;border-radius:6px;font-size:12px;">
+                    </div>
+                    <div style="grid-column:span 2;">
+                        <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:4px;">카테고리 키워드 (쉼표로 구분) · 실제 상품과 매칭에 사용</label>
+                        <input id="pfKeywords" value="${keywords}" style="width:100%;background:#161b22;border:1px solid #30363d;color:#fff;padding:8px;border-radius:6px;font-size:12px;" placeholder="예: 비타민, 오메가3, 프로바이오틱스">
+                    </div>
+                </div>
+            </div>
+
+            ${aiRec ? `<div style="background:rgba(88,166,255,.06);border-left:3px solid #58a6ff;padding:10px 12px;border-radius:4px;margin-bottom:12px;font-size:11px;color:#c9d1d9;line-height:1.5;">
+                <div style="font-size:9px;color:#58a6ff;font-weight:800;margin-bottom:4px;">⚡ AI 레버리지 전략</div>${aiRec}
+            </div>` : ''}
+
+            ${products.length > 0 ? `
+            <div style="margin-bottom:16px;">
+                <div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📦 매핑된 실제 상품 (${products.length}개)</div>
+                <div style="max-height:200px;overflow-y:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;">
+                    ${products.slice(0,20).map(pr => `
+                        <div style="padding:8px 10px;border-bottom:1px solid #30363d;font-size:11px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="location.href='/workbench?review=${pr.review_id}'">
+                            <span style="flex:1;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(pr.generated_naver_title || pr.source_title || '').substring(0, 60)}</span>
+                            <span style="color:${pr.score>=70?'#3fb950':pr.score>=40?'#f39c12':'#8b949e'};font-weight:700;margin-left:8px;">${pr.score || 0}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                ${adopted ? `<button onclick="deletePortfolio(${adopted.id})" style="background:#30363d;border:none;color:#da3633;padding:10px 16px;border-radius:6px;cursor:pointer;font-size:12px;">삭제</button>` : ''}
+                <button onclick="closePortfolioModal()" style="background:#30363d;border:none;color:#c9d1d9;padding:10px 16px;border-radius:6px;cursor:pointer;font-size:12px;">취소</button>
+                <button onclick="savePortfolio(${adopted?.id || 'null'})" style="background:#e94560;border:none;color:#fff;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;">
+                    ${adopted ? '수정 저장' : '포트폴리오로 채택'}
+                </button>
+            </div>
+            <div style="font-size:10px;color:#8b949e;text-align:center;margin-top:10px;">AI 제안 · 원본 설명: ${desc.substring(0,120)}</div>
+        </div>`;
+
+        // 모달 생성
+        let overlay = document.getElementById('pfModal');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'pfModal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;display:flex;align-items:center;justify-content:center;';
+            overlay.onclick = e => { if (e.target === overlay) closePortfolioModal(); };
+            document.body.appendChild(overlay);
+        }
+        overlay.innerHTML = html;
+        overlay.style.display = 'flex';
+
+        // sugg/adopted 저장
+        window._pfEditCtx = { sugg, adopted, aiRec, pivot, desc };
+    };
+
+    window.closePortfolioModal = function() {
+        const m = document.getElementById('pfModal');
+        if (m) m.style.display = 'none';
+    };
+
+    window.savePortfolio = async function(portfolioId) {
+        const ctx = window._pfEditCtx || {};
+        const payload = {
+            name: document.getElementById('pfName').value,
+            grade: document.getElementById('pfGrade').value,
+            target_sku: parseInt(document.getElementById('pfSku').value) || 0,
+            target_margin_rate: parseFloat(document.getElementById('pfMargin').value) || 0,
+            target_monthly_revenue: parseFloat(document.getElementById('pfRev').value) || 0,
+            category_keywords: document.getElementById('pfKeywords').value.split(',').map(s => s.trim()).filter(Boolean),
+            description: ctx.desc || '',
+            ai_recommendation: ctx.aiRec || '',
+            pivot_plan: ctx.pivot || '',
+        };
+
+        try {
+            const res = await fetch('/api/cso/adopt', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('저장 실패');
+            closePortfolioModal();
+            loadCSOStrategy(); // 화면 새로고침
+            loadWeekActions();
+        } catch (e) {
+            alert('저장 실패: ' + e.message);
+        }
+    };
+
+    window.deletePortfolio = async function(id) {
+        if (!confirm('이 포트폴리오를 삭제하시겠습니까?')) return;
+        await fetch(`/api/cso/portfolios/${id}`, { method: 'DELETE' });
+        closePortfolioModal();
+        loadCSOStrategy();
+    };
+
+    // ═══════════════════════════════════════════════
+    // 이번 주 액션 (체크리스트)
+    // ═══════════════════════════════════════════════
+    async function loadWeekActions() {
+        try {
+            const res = await fetch('/api/cso/actions');
+            const data = await res.json();
+            const actions = data.actions || [];
+            const container = document.getElementById('csoWeekActions');
+            if (!container) return;
+
+            const pendingCount = actions.filter(a => a.status !== 'completed').length;
+            const completedCount = actions.filter(a => a.status === 'completed').length;
+
+            let html = '';
+            if (actions.length === 0) {
+                html = '<div style="color:rgba(255,255,255,.5);font-size:11px;">액션 없음</div>';
+            } else {
+                html = actions.map(a => {
+                    const checked = a.status === 'completed';
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                        <input type="checkbox" ${checked?'checked':''} onchange="toggleAction(${a.id}, this.checked)" style="cursor:pointer;">
+                        <span style="flex:1;font-size:11px;color:${checked?'rgba(255,255,255,.4)':'#c9d1d9'};${checked?'text-decoration:line-through;':''}">${a.title}</span>
+                        <button onclick="deleteAction(${a.id})" style="background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:14px;">×</button>
+                    </div>`;
+                }).join('');
+            }
+
+            // 추가 버튼
+            html += `<div style="margin-top:8px;display:flex;gap:4px;">
+                <input id="newActionInput" placeholder="새 액션 입력..." style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 8px;border-radius:4px;font-size:11px;" onkeypress="if(event.key==='Enter')addAction()">
+                <button onclick="addAction()" style="background:#e94560;border:none;color:#fff;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px;">+</button>
+            </div>
+            <div style="margin-top:6px;font-size:10px;color:rgba(255,255,255,.5);">${completedCount}/${actions.length} 완료</div>`;
+
+            container.innerHTML = html;
+        } catch (e) {}
+    }
+
+    window.addAction = async function() {
+        const input = document.getElementById('newActionInput');
+        const title = input?.value?.trim();
+        if (!title) return;
+
+        const iso = new Date().toISOString();
+        const now = new Date();
+        // ISO week 계산 (근사)
+        const firstDay = new Date(now.getFullYear(), 0, 1);
+        const weekNum = Math.ceil(((now - firstDay) / 86400000 + firstDay.getDay() + 1) / 7);
+        const week = `${now.getFullYear()}-W${String(weekNum).padStart(2,'0')}`;
+
+        await fetch('/api/cso/actions', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ week, title, priority: 1 })
+        });
+        if (input) input.value = '';
+        loadWeekActions();
+    };
+
+    window.toggleAction = async function(id, checked) {
+        await fetch(`/api/cso/actions/${id}`, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status: checked ? 'completed' : 'pending' })
+        });
+        loadWeekActions();
+    };
+
+    window.deleteAction = async function(id) {
+        await fetch(`/api/cso/actions/${id}`, { method: 'DELETE' });
+        loadWeekActions();
+    };
+
+    // 초기 로드
+    setTimeout(loadWeekActions, 500);
+
+    loadDashboard();
+    loadTrendIntelligence();
+    loadCSOStrategy();
+
+    // ═══════════════════════════════════════════════════════
+    // 📒 일일 장부 시스템
+    // ═══════════════════════════════════════════════════════
+    const DAILY_API = '/api/daily';
+
+    function _today() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function _fmtKrw(n) {
+        if (!n || n === 0) return '₩0';
+        if (n >= 100000000) return '₩' + (n/100000000).toFixed(1) + '억';
+        if (n >= 10000) return '₩' + (n/10000).toFixed(0) + '만';
+        return '₩' + Math.round(n).toLocaleString();
+    }
+
+    function _dayLabel(dateStr) {
+        const d = new Date(dateStr);
+        const days = ['일','월','화','수','목','금','토'];
+        return `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+    }
+
+    async function loadDailySummary() {
+        if (!document.getElementById('todayRevenue')) return; // 장부 페이지 전용
+        try {
+            const res = await fetch(`${DAILY_API}/summary`);
+            const d = await res.json();
+
+            // ── 오늘 ──
+            const t = d.today || {};
+            document.getElementById('todayRevenue').textContent = _fmtKrw(t.revenue);
+            if (t.target > 0) {
+                document.getElementById('todayTarget').textContent = _fmtKrw(t.target);
+                document.getElementById('todayProgressBar').style.width = Math.min(100, t.target_pct) + '%';
+                document.getElementById('todayPctText').textContent = t.target_pct + '%';
+                document.getElementById('todayRemaining').textContent = t.target_remaining > 0 ? `-${_fmtKrw(t.target_remaining)}` : '✓ 달성';
+            } else {
+                document.getElementById('todayTarget').textContent = '미설정';
+                document.getElementById('todayTarget').style.color = '#f39c12';
+                document.getElementById('todayPctText').textContent = '목표 설정 필요';
+                document.getElementById('todayRemaining').textContent = '';
+            }
+
+            // ── 이번 달 ──
+            const m = d.this_month || {};
+            document.getElementById('monthRevenue').textContent = _fmtKrw(m.revenue);
+            document.getElementById('monthOrders').textContent = (m.orders || 0).toLocaleString() + '건';
+            document.getElementById('monthProfit').textContent = _fmtKrw(m.profit);
+
+            if (m.target > 0) {
+                document.getElementById('monthTarget').textContent = _fmtKrw(m.target);
+                document.getElementById('monthProgressBar').style.width = Math.min(100, m.target_pct) + '%';
+                document.getElementById('monthPctText').textContent = m.target_pct + '%';
+                // 페이스 — 지금까지 도달했어야 할 금액 대비
+                if (m.pace_diff !== undefined) {
+                    const diff = m.pace_diff;
+                    if (Math.abs(diff) < 100) {
+                        document.getElementById('monthPaceText').textContent = '페이스 적정';
+                    } else if (diff > 0) {
+                        document.getElementById('monthPaceText').textContent = `페이스 +${_fmtKrw(diff)}`;
+                        document.getElementById('monthPaceText').style.color = '#00b894';
+                    } else {
+                        document.getElementById('monthPaceText').textContent = `페이스 ${_fmtKrw(diff)}`;
+                        document.getElementById('monthPaceText').style.color = '#d63031';
+                    }
+                }
+            } else {
+                document.getElementById('monthTarget').textContent = '미설정';
+                document.getElementById('monthTarget').style.color = '#f39c12';
+                document.getElementById('monthPctText').textContent = '목표 설정 필요';
+                document.getElementById('monthPaceText').textContent = '';
+            }
+
+            // ── 올해 ──
+            const y = d.this_year || {};
+            document.getElementById('yearRevenue').textContent = _fmtKrw(y.revenue);
+            if (y.target > 0) {
+                document.getElementById('yearTarget').textContent = _fmtKrw(y.target);
+                document.getElementById('yearProgressBar').style.width = Math.min(100, y.target_pct) + '%';
+                document.getElementById('yearPctText').textContent = y.target_pct + '%';
+                document.getElementById('yearRemaining').textContent = y.target_remaining > 0 ? `-${_fmtKrw(y.target_remaining)}` : '✓ 달성';
+            } else {
+                document.getElementById('yearTarget').textContent = '미설정';
+                document.getElementById('yearTarget').style.color = '#f39c12';
+                document.getElementById('yearPctText').textContent = '목표 설정 필요';
+                document.getElementById('yearRemaining').textContent = '';
+            }
+
+            // 부가 정보
+            document.getElementById('todayOrders').textContent = (t.orders || 0) + '건';
+
+            // 할 일 카운트
+            const tk = d.today_tasks || {};
+            document.getElementById('todayTaskCount').textContent = `${tk.completed || 0}/${tk.total || 0}`;
+        } catch(e) { console.error('일일 요약 로드 실패:', e); }
+    }
+
+    // ═══════════════════════════════════════════════
+    // 📌 목표 설정 모달
+    // ═══════════════════════════════════════════════
+    let currentTargetType = null;
+
+    window.openTargetModal = async function(type) {
+        currentTargetType = type;
+        const modal = document.getElementById('targetModal');
+        const title = document.getElementById('targetModalTitle');
+        const hint = document.getElementById('targetModalHint');
+        const input = document.getElementById('targetInput');
+
+        // 현재 목표 조회
+        const res = await fetch(`${DAILY_API}/targets`);
+        const targets = await res.json();
+
+        if (type === 'daily') {
+            title.textContent = '💰 하루 매출 목표';
+            hint.textContent = '하루에 달성하고 싶은 매출 금액을 입력하세요. 이번 달 일수 × 입력값 = 월 목표로 자동 환산됩니다.';
+            input.value = targets.daily_target || '';
+            input.placeholder = '예: 500000 (₩50만)';
+        } else if (type === 'monthly') {
+            title.textContent = '📅 이번 달 매출 목표';
+            hint.textContent = '이번 달에 달성하고 싶은 총 매출을 입력하세요. 하루 목표는 자동 계산됩니다.';
+            input.value = targets.monthly_target || '';
+            input.placeholder = '예: 15000000 (₩1500만)';
+        } else if (type === 'yearly') {
+            title.textContent = '🎯 올해 매출 목표';
+            hint.textContent = '올해 1년간 달성하고 싶은 총 매출을 입력하세요. 12개월에 균등 분배됩니다.';
+            input.value = targets.yearly_target || '';
+            input.placeholder = '예: 200000000 (₩2억)';
+        }
+
+        updateTargetPreview();
+        input.oninput = updateTargetPreview;
+        modal.style.display = 'flex';
+        input.focus();
+    };
+
+    function updateTargetPreview() {
+        const value = parseFloat(document.getElementById('targetInput').value) || 0;
+        const preview = document.getElementById('targetPreview');
+        if (value <= 0) {
+            preview.textContent = '금액을 입력하세요';
+            return;
+        }
+        const now = new Date();
+        const monthDays = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+
+        if (currentTargetType === 'daily') {
+            const monthly = value * monthDays;
+            const yearly = monthly * 12;
+            preview.innerHTML =
+                `📊 <strong>예상 환산</strong><br>` +
+                `· 월 목표: <strong>${_fmtKrw(monthly)}</strong> (${monthDays}일 기준)<br>` +
+                `· 연 목표: <strong>${_fmtKrw(yearly)}</strong>`;
+        } else if (currentTargetType === 'monthly') {
+            const daily = value / monthDays;
+            const yearly = value * 12;
+            preview.innerHTML =
+                `📊 <strong>예상 환산</strong><br>` +
+                `· 하루 목표: <strong>${_fmtKrw(daily)}</strong><br>` +
+                `· 연 목표 (현재 페이스): <strong>${_fmtKrw(yearly)}</strong>`;
+        } else if (currentTargetType === 'yearly') {
+            const monthly = value / 12;
+            const daily = monthly / monthDays;
+            preview.innerHTML =
+                `📊 <strong>예상 환산</strong><br>` +
+                `· 월 목표: <strong>${_fmtKrw(monthly)}</strong> (균등 분배)<br>` +
+                `· 하루 목표: <strong>${_fmtKrw(daily)}</strong>`;
+        }
+    }
+
+    window.closeTargetModal = function() {
+        document.getElementById('targetModal').style.display = 'none';
+        currentTargetType = null;
+    };
+
+    window.saveTarget = async function() {
+        const value = parseFloat(document.getElementById('targetInput').value) || 0;
+        if (value <= 0) { alert('금액을 입력하세요'); return; }
+
+        const btn = document.getElementById('saveTargetBtn');
+        btn.disabled = true;
+        btn.textContent = '저장 중...';
+
+        try {
+            await fetch(`${DAILY_API}/targets`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({target_type: currentTargetType, value})
+            });
+            closeTargetModal();
+            loadDailySummary();
+        } catch(e) {
+            alert('저장 실패: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '저장';
+        }
+    };
+
+    async function loadDailyLog() {
+        if (!document.getElementById('dailyDate')) return; // 장부 페이지 전용
+        const date = document.getElementById('dailyDate').value || _today();
+        document.getElementById('dailyTitleDate').textContent = _dayLabel(date);
+
+        try {
+            const res = await fetch(`${DAILY_API}/log/${date}`);
+            const d = await res.json();
+            document.getElementById('dlRevenue').value = d.revenue_krw || '';
+            document.getElementById('dlOrders').value = d.orders_count || '';
+            document.getElementById('dlAdSpend').value = d.ad_spend_krw || '';
+            document.getElementById('dlProfit').value = d.profit_krw || '';
+            document.getElementById('dlReturns').value = d.returns_count || '';
+            document.getElementById('dlCs').value = d.cs_count || '';
+            document.getElementById('dlNote').value = d.note || '';
+            if (d.updated_at) {
+                const t = new Date(d.updated_at).toLocaleString('ko-KR');
+                document.getElementById('dlSavedAt').textContent = `마지막 저장: ${t}`;
+            } else {
+                document.getElementById('dlSavedAt').textContent = '아직 저장된 기록 없음';
+            }
+        } catch(e) {}
+
+        loadDailyTasks(date);
+        loadWeek7Chart();
+    }
+
+    async function saveDailyLog() {
+        const date = document.getElementById('dailyDate').value || _today();
+        const btn = document.getElementById('saveDailyBtn');
+        btn.disabled = true;
+        btn.textContent = '저장 중...';
+
+        try {
+            const payload = {
+                date,
+                revenue_krw: parseFloat(document.getElementById('dlRevenue').value) || 0,
+                orders_count: parseInt(document.getElementById('dlOrders').value) || 0,
+                ad_spend_krw: parseFloat(document.getElementById('dlAdSpend').value) || 0,
+                profit_krw: parseFloat(document.getElementById('dlProfit').value) || 0,
+                returns_count: parseInt(document.getElementById('dlReturns').value) || 0,
+                cs_count: parseInt(document.getElementById('dlCs').value) || 0,
+                note: document.getElementById('dlNote').value || '',
+            };
+            await fetch(`${DAILY_API}/log`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            });
+            btn.textContent = '✓ 저장됨';
+            setTimeout(() => { btn.textContent = '💾 저장'; btn.disabled = false; }, 1500);
+            loadDailySummary();
+            loadWeek7Chart();
+            document.getElementById('dlSavedAt').textContent = `마지막 저장: ${new Date().toLocaleString('ko-KR')}`;
+        } catch(e) {
+            btn.textContent = '❌ 실패';
+            setTimeout(() => { btn.textContent = '💾 저장'; btn.disabled = false; }, 2000);
+        }
+    }
+
+    async function uploadExcel(file) {
+        if (!file) return;
+        const label = document.querySelector('label[for="excelUploadInput"]');
+        const original = label ? label.innerHTML : '';
+        if (label) { label.innerHTML = '⏳ 업로드 중...'; label.style.pointerEvents = 'none'; }
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch(`${DAILY_API}/import/excel`, { method: 'POST', body: fd });
+            const d = await res.json();
+            if (!res.ok || d.status !== 'success' || d.error) {
+                alert('❌ 업로드 실패: ' + (d.error || res.statusText));
+            } else {
+                const r = d.results || {};
+                const rev = (r.revenue && r.revenue.imported) || 0;
+                const revSk = (r.revenue && r.revenue.skipped) || 0;
+                const revErr = (r.revenue && r.revenue.error) || '';
+                const ord = (r.orders && r.orders.imported) || 0;
+                const ordSk = (r.orders && r.orders.skipped) || 0;
+                const cs  = (r.cs_templates && r.cs_templates.imported) || 0;
+                const sheets = (r.sheets_found || d.results.sheets_found || []);
+                let msg = `✅ 엑셀 업로드 완료\n\n`;
+                msg += `매출현황: ${rev}일 (skip ${revSk})${revErr ? ' ⚠ '+revErr : ''}\n`;
+                msg += `주문현황: ${ord}건 (skip ${ordSk})\n`;
+                msg += `CS 템플릿: ${cs}개\n`;
+                if (rev === 0 && ord === 0 && cs === 0) {
+                    msg += `\n⚠ 0건 import됨. 시트 확인 필요:\n${(d.results.sheets_found || sheets).join(', ')}`;
+                }
+                alert(msg);
+                if (typeof loadDailyLog === 'function') loadDailyLog();
+                if (typeof loadDailySummary === 'function') loadDailySummary();
+                if (typeof loadWeek7Chart === 'function') loadWeek7Chart();
+            }
+        } catch(e) {
+            alert('❌ 업로드 오류: ' + e.message);
+        } finally {
+            if (label) { label.innerHTML = original; label.style.pointerEvents = ''; }
+            document.getElementById('excelUploadInput').value = '';
+        }
+    }
+    window.uploadExcel = uploadExcel;
+
+    async function loadDailyTasks(date) {
+        if (!document.getElementById('dailyTasksList')) return; // 장부 페이지 전용
+        date = date || document.getElementById('dailyDate').value || _today();
+        try {
+            const res = await fetch(`${DAILY_API}/tasks?target_date=${date}`);
+            const d = await res.json();
+            const tasks = d.tasks || [];
+            const rollover = d.rollover || [];
+            const container = document.getElementById('dailyTasksList');
+
+            let html = '';
+            // 이월 할 일 (어제 미완료)
+            if (rollover.length > 0) {
+                html += `<div style="font-size:10px;color:#f39c12;padding:4px 6px;background:rgba(243,156,18,.1);border-radius:4px;margin-bottom:4px;">🔄 어제 미완료 ${rollover.length}건 — 클릭해서 오늘로 이월</div>`;
+                html += rollover.map(t => `
+                    <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(243,156,18,.05);border-radius:6px;font-size:12px;cursor:pointer;" onclick="rolloverTask(${t.id},'${date}')">
+                        <span style="color:#f39c12;">↪</span>
+                        <span style="flex:1;color:rgba(201,209,217,.7);">${t.title}</span>
+                    </div>
+                `).join('');
+                html += `<div style="height:1px;background:var(--border);margin:6px 0;"></div>`;
+            }
+
+            // 오늘 할 일
+            if (tasks.length === 0) {
+                html += '<div style="color:var(--muted);font-size:11px;padding:8px;text-align:center;">할 일이 없습니다</div>';
+            } else {
+                html += tasks.map(t => {
+                    const checked = t.status === 'completed';
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg);border-radius:6px;">
+                        <input type="checkbox" ${checked?'checked':''} onchange="toggleDailyTask(${t.id}, this.checked)" style="cursor:pointer;">
+                        <span style="flex:1;font-size:12px;color:${checked?'var(--muted)':'var(--text)'};${checked?'text-decoration:line-through;':''}">${t.title}</span>
+                        <button onclick="deleteDailyTask(${t.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">×</button>
+                    </div>`;
+                }).join('');
+            }
+
+            container.innerHTML = html;
+        } catch(e) {}
+    }
+
+    window.addDailyTask = async function() {
+        const input = document.getElementById('newTaskInput');
+        const title = input?.value?.trim();
+        if (!title) return;
+        const date = document.getElementById('dailyDate').value || _today();
+        await fetch(`${DAILY_API}/tasks`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({date, title, priority: 1})
+        });
+        input.value = '';
+        loadDailyTasks();
+        loadDailySummary();
+    };
+
+    window.toggleDailyTask = async function(id, checked) {
+        await fetch(`${DAILY_API}/tasks/${id}`, {
+            method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({status: checked ? 'completed' : 'pending'})
+        });
+        loadDailyTasks();
+        loadDailySummary();
+    };
+
+    window.deleteDailyTask = async function(id) {
+        await fetch(`${DAILY_API}/tasks/${id}`, {method:'DELETE'});
+        loadDailyTasks();
+        loadDailySummary();
+    };
+
+    window.rolloverTask = async function(id, date) {
+        await fetch(`${DAILY_API}/tasks/${id}/rollover?target_date=${date}`, {method:'POST'});
+        loadDailyTasks();
+    };
+
+    async function loadWeek7Chart() {
+        if (!document.getElementById('week7Chart')) return; // 장부 페이지 전용
+        const today = _today();
+        const start = new Date();
+        start.setDate(start.getDate() - 6);
+        const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;
+
+        try {
+            const res = await fetch(`${DAILY_API}/log-range?start=${startStr}&end=${today}`);
+            const d = await res.json();
+            const logs = d.logs || [];
+            const maxRev = Math.max(...logs.map(l => l.revenue_krw || 0), 1);
+
+            const chart = document.getElementById('week7Chart');
+            chart.innerHTML = logs.map(l => {
+                const h = l.revenue_krw > 0 ? Math.max(4, (l.revenue_krw / maxRev * 100)) : 2;
+                const isToday = l.date === today;
+                const color = isToday ? 'var(--brand)' : (l.revenue_krw > 0 ? '#00b894' : 'var(--border)');
+                const dayLabel = new Date(l.date).getDate();
+                return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;" title="${l.date}: ${_fmtKrw(l.revenue_krw)}">
+                    <div style="font-size:9px;color:var(--muted);">${l.revenue_krw > 0 ? _fmtKrw(l.revenue_krw) : ''}</div>
+                    <div style="flex:1;display:flex;align-items:flex-end;width:100%;">
+                        <div style="width:100%;background:${color};height:${h}%;border-radius:3px 3px 0 0;transition:all .3s;"></div>
+                    </div>
+                    <div style="font-size:9px;color:${isToday?'var(--brand)':'var(--muted)'};font-weight:${isToday?700:400};">${dayLabel}일</div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('week7Summary').textContent =
+                `7일 합계 ${_fmtKrw(d.total.revenue_krw)} · 일평균 ${_fmtKrw(d.average.revenue_krw)}`;
+        } catch(e) {}
+    }
+
+    // ── 거래 원장 / 세무 집계 ──────────────────────────
+    function switchLedgerTab(tab) {
+        document.querySelectorAll('.ledger-tab').forEach(b => {
+            const active = b.dataset.tab === tab;
+            b.style.color = active ? 'var(--text)' : 'var(--muted)';
+            b.style.borderBottomColor = active ? 'var(--brand)' : 'transparent';
+            b.classList.toggle('active', active);
+        });
+        document.querySelectorAll('[data-tabpanel]').forEach(p => {
+            p.style.display = p.dataset.tabpanel === tab ? '' : 'none';
+        });
+        if (tab === 'orders') loadLedgerOrders();
+        if (tab === 'tax') loadTaxMonthly();
+    }
+    window.switchLedgerTab = switchLedgerTab;
+
+    async function loadLedgerMonths() {
+        try {
+            const res = await fetch(`${DAILY_API}/ledger/months`);
+            const d = await res.json();
+            const months = d.months || [];
+            const sel1 = document.getElementById('lgMonth');
+            const sel2 = document.getElementById('taxMonth');
+            if (sel1) {
+                sel1.innerHTML = '<option value="">전체 월</option>' +
+                    months.map(m => `<option value="${m.ym}">${m.ym} (${m.count}건)</option>`).join('');
+            }
+            if (sel2) {
+                sel2.innerHTML = months.map(m => `<option value="${m.ym}">${m.ym} (${m.count}건)</option>`).join('');
+                if (months.length > 0 && !sel2.value) sel2.value = months[0].ym;
+            }
+        } catch(e) {}
+    }
+
+    async function loadLedgerOrders() {
+        const ym = document.getElementById('lgMonth').value;
+        const plat = document.getElementById('lgPlatform').value;
+        const q = document.getElementById('lgSearch').value.trim();
+        const params = new URLSearchParams();
+        if (ym) params.set('year_month', ym);
+        if (plat) params.set('platform', plat);
+        if (q) params.set('q', q);
+        params.set('limit', '500');
+        try {
+            const res = await fetch(`${DAILY_API}/ledger/orders?${params}`);
+            const d = await res.json();
+            const orders = d.orders || [];
+            const tbody = document.getElementById('lgTbody');
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--muted);">데이터 없음</td></tr>';
+            } else {
+                tbody.innerHTML = orders.map(o => `
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:6px 8px;white-space:nowrap;">${o.order_date || ''}</td>
+                        <td style="padding:6px 8px;">${o.platform || ''}</td>
+                        <td style="padding:6px 8px;font-family:monospace;font-size:10px;">${(o.order_no||'').substring(0,14)}</td>
+                        <td style="padding:6px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(o.product_name||'').replace(/"/g,'&quot;')}">${o.product_name || ''}</td>
+                        <td style="padding:6px 8px;">${o.buyer_name || ''}</td>
+                        <td style="padding:6px 8px;font-family:monospace;font-size:10px;">${o.customs_no || ''}</td>
+                        <td style="padding:6px 8px;text-align:right;">${_fmtKrw(o.payment_krw)}</td>
+                        <td style="padding:6px 8px;text-align:right;color:#3fb950;">${_fmtKrw(o.settlement_krw)}</td>
+                        <td style="padding:6px 8px;text-align:right;color:#f39c12;">${_fmtKrw(o.platform_fee_krw)}</td>
+                        <td style="padding:6px 8px;text-align:right;color:var(--muted);">${_fmtKrw(o.purchase_krw)}</td>
+                        <td style="padding:6px 8px;text-align:right;font-weight:700;">${_fmtKrw(o.profit_krw)}</td>
+                        <td style="padding:6px 8px;text-align:center;">
+                            <select onchange="updateOrderTax(${o.id}, 'tax_category', this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:10px;">
+                                <option value="" ${!o.tax_category?'selected':''}>미분류</option>
+                                <option value="과세" ${o.tax_category==='과세'?'selected':''}>과세</option>
+                                <option value="면세" ${o.tax_category==='면세'?'selected':''}>면세</option>
+                                <option value="영세" ${o.tax_category==='영세'?'selected':''}>영세</option>
+                                <option value="대행수수료" ${o.tax_category==='대행수수료'?'selected':''}>대행수수료</option>
+                            </select>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            // 합계 표시
+            const sum = orders.reduce((a,o) => ({
+                payment: a.payment + (o.payment_krw||0),
+                settlement: a.settlement + (o.settlement_krw||0),
+                fee: a.fee + (o.platform_fee_krw||0),
+                purchase: a.purchase + (o.purchase_krw||0),
+                profit: a.profit + (o.profit_krw||0),
+            }), {payment:0,settlement:0,fee:0,purchase:0,profit:0});
+            document.getElementById('lgStats').innerHTML = `
+                <div><strong style="color:var(--text);">${d.total}건</strong> 표시</div>
+                <div>결제 <strong style="color:var(--text);">${_fmtKrw(sum.payment)}</strong></div>
+                <div>정산 <strong style="color:#3fb950;">${_fmtKrw(sum.settlement)}</strong></div>
+                <div>수수료 <strong style="color:#f39c12;">${_fmtKrw(sum.fee)}</strong></div>
+                <div>원가 <strong>${_fmtKrw(sum.purchase)}</strong></div>
+                <div>수익 <strong style="color:var(--text);">${_fmtKrw(sum.profit)}</strong></div>
+            `;
+        } catch(e) {
+            document.getElementById('lgTbody').innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:#e94560;">로드 실패</td></tr>';
+        }
+    }
+    window.loadLedgerOrders = loadLedgerOrders;
+
+    async function updateOrderTax(orderId, field, value) {
+        try {
+            await fetch(`${DAILY_API}/ledger/order/${orderId}`, {
+                method: 'PATCH',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({[field]: value}),
+            });
+        } catch(e) {}
+    }
+    window.updateOrderTax = updateOrderTax;
+
+    function exportLedgerCsv() {
+        const ym = document.getElementById('lgMonth').value;
+        if (!ym) { alert('월을 선택하세요'); return; }
+        window.location.href = `${DAILY_API}/tax/export?year_month=${ym}`;
+    }
+    window.exportLedgerCsv = exportLedgerCsv;
+
+    async function loadTaxMonthly() {
+        const ym = document.getElementById('taxMonth').value;
+        if (!ym) return;
+        try {
+            const res = await fetch(`${DAILY_API}/tax/monthly?year_month=${ym}`);
+            const d = await res.json();
+            const t = d.total || {};
+            document.getElementById('taxSummary').innerHTML = `
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                    <div style="font-size:10px;color:var(--muted);font-weight:700;">매출 (결제금액)</div>
+                    <div style="font-size:1.4rem;font-weight:900;margin-top:4px;">${_fmtKrw(t.revenue)}</div>
+                    <div style="font-size:10px;color:var(--muted);">${t.orders||0}건</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                    <div style="font-size:10px;color:var(--muted);font-weight:700;">정산예정 - 수수료</div>
+                    <div style="font-size:1.4rem;font-weight:900;margin-top:4px;color:#3fb950;">${_fmtKrw(t.settlement)}</div>
+                    <div style="font-size:10px;color:#f39c12;">플랫폼 수수료 ${_fmtKrw(t.platform_fee)}</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                    <div style="font-size:10px;color:var(--muted);font-weight:700;">매입 (원가 + 배송)</div>
+                    <div style="font-size:1.4rem;font-weight:900;margin-top:4px;color:#ff6b6b;">${_fmtKrw((t.purchase||0)+(t.intl_ship||0)+(t.cargo_ship||0)+(t.customs_duty||0))}</div>
+                    <div style="font-size:10px;color:var(--muted);">구매 ${_fmtKrw(t.purchase)} · 국제배송 ${_fmtKrw(t.intl_ship)}</div>
+                </div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                    <div style="font-size:10px;color:var(--muted);font-weight:700;">수익금</div>
+                    <div style="font-size:1.4rem;font-weight:900;margin-top:4px;color:var(--brand);">${_fmtKrw(t.profit)}</div>
+                    <div style="font-size:10px;color:var(--muted);">${t.revenue > 0 ? ((t.profit/t.revenue)*100).toFixed(1) : 0}%</div>
+                </div>
+            `;
+            const v = d.vat_estimates || {};
+            document.getElementById('taxVatBox').innerHTML = `
+                <div style="font-size:11px;color:#f39c12;font-weight:800;margin-bottom:8px;">⚠ 부가세 추정치 — 세무사 확정 필요</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <div style="font-size:10px;color:var(--muted);">(A) 단순대행 = 수익금만 과세</div>
+                        <div style="font-size:1.2rem;font-weight:800;">${_fmtKrw(v.on_profit_only)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--muted);">(B) 위탁매매 = 전체 매출 과세</div>
+                        <div style="font-size:1.2rem;font-weight:800;">${_fmtKrw(v.on_full_revenue)}</div>
+                    </div>
+                </div>
+                <div style="font-size:10px;color:var(--muted);margin-top:6px;">${v.note||''}</div>
+            `;
+            // 플랫폼별
+            const tbp = document.querySelector('#taxByPlatform tbody');
+            tbp.innerHTML = (d.by_platform||[]).map(p => `
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:6px;">${p.platform||'-'}</td>
+                    <td style="padding:6px;text-align:right;">${p.orders}</td>
+                    <td style="padding:6px;text-align:right;">${_fmtKrw(p.revenue)}</td>
+                    <td style="padding:6px;text-align:right;color:var(--brand);">${_fmtKrw(p.profit)}</td>
+                </tr>
+            `).join('');
+            // 과세구분별
+            const tbc = document.querySelector('#taxByCategory tbody');
+            tbc.innerHTML = (d.by_tax_category||[]).map(c => `
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:6px;">${c.cat}</td>
+                    <td style="padding:6px;text-align:right;">${c.orders}</td>
+                    <td style="padding:6px;text-align:right;">${_fmtKrw(c.revenue)}</td>
+                </tr>
+            `).join('');
+        } catch(e) {}
+    }
+    window.loadTaxMonthly = loadTaxMonthly;
+
+    // 초기 로드 (장부 페이지에만 해당 DOM 존재)
+    if (document.getElementById('dailyDate')) {
+        document.getElementById('dailyDate').value = _today();
+        loadDailyLog();
+        loadDailySummary();
+        loadLedgerMonths();
+    }
+    </script>
+</body>
+</html>

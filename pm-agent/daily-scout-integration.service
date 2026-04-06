@@ -1,0 +1,27 @@
+[Unit]
+Description=Daily Scout PM Agent Integration Service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Fortimove-OS/pm-agent
+Environment="PATH=/home/ubuntu/Fortimove-OS/pm-agent/venv/bin"
+EnvironmentFile=/home/ubuntu/Fortimove-OS/pm-agent/.env
+
+# Daily Scout Integration 환경 변수
+Environment="DB_HOST=localhost"
+Environment="DB_PORT=5432"
+Environment="DB_NAME=fortimove_images"
+Environment="DB_USER=fortimove"
+Environment="DB_PASSWORD=fortimove123"
+Environment="BATCH_SIZE=10"
+Environment="POLLING_INTERVAL=300"
+
+ExecStart=/home/ubuntu/Fortimove-OS/pm-agent/venv/bin/python3 daily_scout_integration.py
+
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
