@@ -29,7 +29,36 @@ AI는 리스크가 수반되는 영역(법, 세무, 인증 등)에 대해 긍정
 *   **CS(고객 응대) 관련 질문**: 과도한 사과나 확정적인 약속을 단언하는 감성적 문구는 배제하고, 향후 조치와 명확한 사실관계를 안내하는 건조한 템플릿 형태로 출력합니다.
 *   **법/통관/인증/지재권 질문**: 100% 안전이나 100% 제재라는 식의 결과론 대신, KIPRIS 나 관세청 등 필수 '확인 절차'와 발생 가능한 '위반 소지 시나리오'를 병행 제시합니다.
 
-## 4. 고정 출력 형식
+## 4. gstack 스킬 (AI 개발 도구)
+
+`~/.claude/skills/gstack`에 설치된 gstack 스킬을 사용합니다. 웹 브라우징은 항상 /browse 스킬을 사용하고, mcp__claude-in-chrome__* 도구는 사용하지 않습니다.
+
+### Skill routing
+
+사용자의 요청이 아래 스킬과 매칭되면, 다른 도구보다 **먼저** 해당 스킬을 Skill 도구로 호출합니다.
+
+- 제품 아이디어, "이거 만들어볼까", 브레인스토밍 → `/office-hours`
+- 버그, 에러, "왜 안 돼", 500 에러 → `/investigate`
+- 배포, PR 생성, push → `/ship`
+- QA, 사이트 테스트, 버그 찾기 → `/qa`
+- 코드 리뷰, diff 체크 → `/review`
+- 배포 후 문서 업데이트 → `/document-release`
+- 주간 회고 → `/retro`
+- 디자인 시스템, 브랜드 → `/design-consultation`
+- 시각 감사, 디자인 다듬기 → `/design-review`
+- 아키텍처 리뷰 → `/plan-eng-review`
+- 진행 상황 저장, 체크포인트 → `/checkpoint`
+- 코드 품질, 헬스 체크 → `/health`
+- CEO 관점 제품 리뷰 → `/plan-ceo-review`
+- 보안 감사 (OWASP/STRIDE) → `/cso`
+- 성능 벤치마크 → `/benchmark`
+- 자동 계획 + 전체 리뷰 파이프라인 → `/autoplan`
+
+### 전체 사용 가능 스킬
+
+`/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/plan-devex-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/design-review`, `/devex-review`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/setup-browser-cookies`, `/setup-deploy`, `/retro`, `/investigate`, `/document-release`, `/codex`, `/cso`, `/autoplan`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`, `/checkpoint`, `/health`
+
+## 5. 고정 출력 형식
 
 AI는 지시받은 내용을 정리하여 답변할 때, 어떤 포맷 지시가 없더라도 최소한 아래 5가지 목차 순서를 기본틀로 삼아 출력합니다.
 
